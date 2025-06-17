@@ -1,0 +1,128 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 40% 98%; /* Light grayish blue */
+  --foreground: 215 25% 27%; /* Dark desaturated blue */
+  --card: 0 0% 100%; /* White */
+  --card-foreground: 215 25% 27%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 25% 27%;
+  
+  --primary: 340 60% 65%; /* Soft Pink from logo/images */
+  --primary-foreground: 0 0% 100%; /* White */
+
+  --secondary: 30 60% 88%; /* Light Beige/Cream from images */
+  --secondary-foreground: 330 50% 35%; /* Darker Rose/Maroon for text on beige */
+
+  --muted: 210 30% 94%; /* Lighter grayish blue */
+  --muted-foreground: 215 20% 45%; /* Medium gray-blue */
+  
+  --accent: 330 55% 80%; /* Lighter Pink */
+  --accent-foreground: 330 50% 35%; /* Darker Rose/Maroon */
+
+  --accent-alt: 330 50% 55%; /* Darker Rose/Maroon (similar to primary logo accent) */
+  --accent-alt-dark: 330 50% 35%; /* Even darker for contrast */
+  --accent-foreground-alt: 0 0% 100%; /* White for text on accent-alt */
+  
+  --destructive: 0 72% 51%; /* Red */
+  --destructive-foreground: 0 0% 100%;
+  
+  --border: 210 20% 88%; /* Light gray border */
+  --input: 210 30% 92%; /* Slightly darker input background */
+  --ring: 340 60% 65%; /* Primary color for focus rings */
+  
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Example Dark Mode, can be refined */
+  --background: 215 28% 17%;
+  --foreground: 210 40% 98%;
+  --card: 215 28% 22%;
+  --card-foreground: 210 40% 98%;
+  --popover: 215 28% 22%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 340 70% 70%;
+  --primary-foreground: 215 25% 10%;
+  
+  --secondary: 30 30% 25%;
+  --secondary-foreground: 30 50% 90%;
+
+  --muted: 215 25% 25%;
+  --muted-foreground: 215 20% 65%;
+  
+  --accent: 330 60% 60%;
+  --accent-foreground: 0 0% 98%;
+
+  --accent-alt: 330 50% 50%;
+  --accent-alt-dark: 330 50% 70%; 
+  --accent-foreground-alt: 0 0% 100%;
+
+  --destructive: 0 63% 50%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 215 20% 30%;
+  --input: 215 25% 28%;
+  --ring: 340 70% 70%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  font-family: 'Montserrat', sans-serif;
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+}
+
+.glass-effect {
+  background: hsla(var(--card) / 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid hsla(var(--border) / 0.2);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent-alt)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px hsla(var(--foreground) / 0.08);
+  border-color: hsla(var(--primary) / 0.5);
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.sidebar-gradient {
+  background: linear-gradient(180deg, hsl(var(--accent-alt)) 0%, hsl(var(--primary)) 100%);
+}
+
+.button-primary-gradient {
+   background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent-alt)));
+   color: hsl(var(--primary-foreground));
+}
+.button-primary-gradient:hover {
+  opacity: 0.9;
+}
