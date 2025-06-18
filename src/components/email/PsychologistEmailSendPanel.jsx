@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Check, ChevronsUpDown, User, Calendar } from 'lucide-react';
+import { Send, Check, ChevronsUpDown, User, Calendar, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { emailTemplates } from '@/components/email/emailTemplates';
-import emailjs from '@emailjs/browser';
+import EmailService from '@/services/EmailService';
 import {
   Command,
   CommandEmpty,
@@ -20,101 +19,121 @@ import {
 import { cn } from "@/lib/utils"
 
 const PsychologistEmailSendPanel = () => {
-  const [selectedTemplate, setSelectedTemplate] = useState('psychologist-daily-summary');
-  const [psychologists, setPsychologists] = useState([]);
-  const [selectedPsychologist, setSelectedPsychologist] = useState(null);
-  const [open, setOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState('professional-daily-summary');
+  const [professionals, setProfessionals] = useState([]);
+  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [open, setOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    const savedPsychologists = localStorage.getItem('clinic_psychologists');
-    if (savedPsychologists) {
-      setPsychologists(JSON.parse(savedPsychologists));
+    const savedProfessionals = localStorage.getItem('clinic_professionals');
+    if (savedProfessionals) {
+      setProfessionals(JSON.parse(savedProfessionals));
     }
   }, []);
   
-  const getTomorrowAppointments = (psychologistId) => {
+  const getTomorrowAppointments = (professionalId) => {
     const appointments = JSON.parse(localStorage.getItem('clinic_appointments') || '[]');
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    const psychologistAppointments = appointments.filter(a => 
-        a.psychologistId === psychologistId && 
+    const professionalAppointments = appointments.filter(a => 
+        a.professionalId === professionalId && 
         new Date(a.date).toDateString() === tomorrow.toDateString()
     ).sort((a,b) => a.time.localeCompare(b.time));
 
-    if (psychologistAppointments.length === 0) {
-        return "No tienes citas programadas para mañana.";
+    if (professionalAppointments.length === 0) {
+        return "No tiene citas programadas para mañana.";
     }
 
-    return psychologistAppointments.map(a => `- ${a.time}: Cita con ${a.patientName}`).join('\n');
+    return professionalAppointments.map(a => `- ${a.time}: Cita con ${a.patientName}`).join('\n');
   }
 
-  const handleSendEmail = () => {
-    if (!selectedPsychologist) {
-        toast({ title: "Error", description: "Por favor, selecciona un psicólogo.", variant: "destructive" });
-        return;
+  const professionalEmailTemplates = {
+    'professional-daily-summary': { 
+      name: 'Resumen Diario de Citas', 
+      description: 'Envía el resumen de citas del día siguiente' 
+    },
+    'professional-new-appointment': { 
+      name: 'Nueva Cita Asignada', 
+      description: 'Notifica sobre una nueva cita asignada' 
     }
+  };
 
-    setIsSending(true);
-    const config = JSON.parse(localStorage.getItem('clinic_email_config'));
-    const templateKey = selectedTemplate;
-    
-    if (!config || !config.serviceId || !config.publicKey || !config.templateIds[templateKey]) {
-      toast({
-        title: "Configuración requerida",
-        description: "Por favor, ve a Configuración para añadir tus credenciales de EmailJS.",
-        variant: "destructive"
-      });
-      setIsSending(false);
+  const handleSendEmail = async () => {
+    if (!selectedProfessional) {
+      toast({ title: "Error", description: "Por favor, selecciona un profesional.", variant: "destructive" });
       return;
     }
 
-    const templateParams = {
-      psychologist_name: selectedPsychologist.name,
-      to_email: selectedPsychologist.email,
-      daily_schedule: getTomorrowAppointments(selectedPsychologist.id),
-      patient_name: 'Paciente de Ejemplo',
-      appointment_date: 'Fecha de Ejemplo'
-    };
-
-    if (templateKey === 'psychologist-new-appointment') {
-        toast({ title: "Función no implementada", description: "El envío de esta notificación debe ser automático. Puedes solicitar esta automatización."});
-        setIsSending(false);
-        return;
+    if (selectedTemplate === 'professional-new-appointment') {
+      toast({ 
+        title: "Función no implementada", 
+        description: "El envío de esta notificación debe ser automático cuando se cree una cita.",
+        variant: "default"
+      });
+      return;
     }
 
-    emailjs.send(config.serviceId, config.templateIds[templateKey], templateParams, config.publicKey)
-      .then((response) => {
-        toast({ title: "¡Correo enviado!", description: `Notificación enviada a ${selectedPsychologist.name}.` });
-        
-        const newEmail = {
-          id: Date.now(),
-          type: selectedTemplate,
-          recipient: selectedPsychologist.email,
-          subject: emailTemplates[selectedTemplate].subject,
-          sentAt: new Date().toISOString(),
-          status: 'enviado'
-        };
-        const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
-        const updatedHistory = [newEmail, ...currentHistory];
-        localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
-        window.dispatchEvent(new Event('storage'));
-        
-      }, (err) => {
-        toast({ title: "Error al enviar", description: "Revisa tu configuración y la consola.", variant: "destructive" });
-        console.error('FAILED...', err);
-      }).finally(() => {
-        setIsSending(false);
+    setIsSending(true);
+
+    try {
+      const emailData = {
+        professional_name: selectedProfessional.name,
+        daily_schedule: getTomorrowAppointments(selectedProfessional.id),
+        patient_name: 'Paciente de Ejemplo',
+        appointment_date: 'Fecha de Ejemplo'
+      };
+
+      const result = await EmailService.sendEmail(selectedTemplate, selectedProfessional.email, emailData);
+
+      if (result.success) {
+        toast({ 
+          title: "¡Correo enviado!", 
+          description: `Notificación enviada a ${selectedProfessional.name}.` 
+        });
+      }
+
+    } catch (error) {
+      toast({ 
+        title: "Error al enviar", 
+        description: error.message || "Ocurrió un error al enviar el correo.", 
+        variant: "destructive" 
       });
+      console.error('Error enviando email:', error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handlePreviewEmail = () => {
+    if (!selectedProfessional) {
+      toast({ title: "Error", description: "Por favor, selecciona un profesional para previsualizar.", variant: "destructive" });
+      return;
+    }
+
+    const previewData = {
+      professional_name: selectedProfessional.name,
+      daily_schedule: getTomorrowAppointments(selectedProfessional.id),
+      patient_name: 'Juan Pérez',
+      appointment_date: '15 de Enero de 2024 a las 10:00',
+      appointment_type: 'Consulta General',
+      folio: 'GMD-240115-ABCD'
+    };
+
+    EmailService.previewTemplate(selectedTemplate, previewData);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+    <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
+      <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
+        <Send className="w-5 h-5 mr-2 text-primary" />
+        Notificaciones para Profesionales
+      </h2>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Psicólogo</label>
-           <Popover open={open} onOpenChange={setOpen}>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Seleccionar Profesional</label>
+          <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -122,34 +141,34 @@ const PsychologistEmailSendPanel = () => {
                 aria-expanded={open}
                 className="w-full justify-between"
               >
-                {selectedPsychologist
-                  ? selectedPsychologist.name
-                  : "Selecciona un psicólogo..."}
+                {selectedProfessional
+                  ? selectedProfessional.name
+                  : "Selecciona un profesional..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
-                <CommandInput placeholder="Buscar psicólogo..." />
+                <CommandInput placeholder="Buscar profesional..." />
                 <CommandList>
-                  <CommandEmpty>No se encontró ningún psicólogo.</CommandEmpty>
+                  <CommandEmpty>No se encontró ningún profesional.</CommandEmpty>
                   <CommandGroup>
-                    {psychologists.map((psychologist) => (
+                    {professionals.map((professional) => (
                       <CommandItem
-                        key={psychologist.id}
-                        value={psychologist.name}
+                        key={professional.id}
+                        value={professional.name}
                         onSelect={() => {
-                          setSelectedPsychologist(psychologist)
+                          setSelectedProfessional(professional)
                           setOpen(false)
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            selectedPsychologist?.id === psychologist.id ? "opacity-100" : "opacity-0"
+                            selectedProfessional?.id === professional.id ? "opacity-100" : "opacity-0"
                           )}
                         />
-                        {psychologist.name}
+                        {professional.name}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -160,21 +179,42 @@ const PsychologistEmailSendPanel = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Notificación</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Tipo de Notificación</label>
           <select
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
           >
-            <option value="psychologist-daily-summary">Resumen Diario de Citas</option>
-            <option value="psychologist-new-appointment">Nueva Cita Asignada</option>
+            {Object.entries(professionalEmailTemplates).map(([key, template]) => (
+              <option key={key} value={key}>{template.name}</option>
+            ))}
           </select>
+          {professionalEmailTemplates[selectedTemplate] && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {professionalEmailTemplates[selectedTemplate].description}
+            </p>
+          )}
         </div>
-        
-        <Button onClick={handleSendEmail} disabled={isSending || !selectedPsychologist} className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700">
-          <Send className="w-4 h-4 mr-2" />
-          {isSending ? 'Enviando...' : 'Enviar Correo'}
-        </Button>
+
+        <div className="flex space-x-2">
+          <Button 
+            onClick={handlePreviewEmail} 
+            variant="outline" 
+            disabled={!selectedProfessional}
+            className="flex-1"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            Previsualizar
+          </Button>
+          <Button 
+            onClick={handleSendEmail} 
+            disabled={isSending || !selectedProfessional} 
+            className="flex-1 button-primary-gradient"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSending ? 'Enviando...' : 'Enviar Correo'}
+          </Button>
+        </div>
       </div>
     </div>
   );
