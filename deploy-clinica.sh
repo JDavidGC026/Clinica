@@ -179,13 +179,26 @@ CREATE TABLE IF NOT EXISTS email_history (
     recipient VARCHAR(255) NOT NULL,
     subject VARCHAR(500),
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('enviado', 'pendiente', 'error') DEFAULT 'enviado'
+    status ENUM('enviado', 'pendiente', 'error', 'simulado') DEFAULT 'enviado'
 );
 
 CREATE TABLE IF NOT EXISTS settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     setting_key VARCHAR(100) UNIQUE NOT NULL,
     setting_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabla de usuarios para login
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    role ENUM('Administrador', 'Gerente', 'Profesional', 'Recepcionista') NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -220,6 +233,13 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
 ('timezone', 'America/Mexico_City'),
 ('currency', 'MXN'),
 ('system_version', '1.0.0');
+
+-- Usuarios de prueba con contraseñas hasheadas
+INSERT IGNORE INTO users (username, password_hash, name, email, role) VALUES
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador General', 'admin@clinicadelux.com', 'Administrador'),
+('gerente', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Gerente Principal', 'gerente@clinicadelux.com', 'Gerente'),
+('profesional1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', 'Profesional'),
+('recepcion', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'María López', 'maria.lopez@clinicadelux.com', 'Recepcionista');
 EOF
 }
 
@@ -310,6 +330,57 @@ function getMexicoNow() {
 ?>
 EOF
 
+# Crear API de login
+sudo tee "$WEB_DIR/api/login.php" > /dev/null << 'EOF'
+<?php
+require_once 'config.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    sendError('Método no permitido', 405);
+}
+
+$data = getRequestData();
+
+if (!isset($data['username']) || !isset($data['password'])) {
+    sendError('Usuario y contraseña requeridos', 400);
+}
+
+try {
+    $pdo = getDatabase();
+    
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND active = 1");
+    $stmt->execute([$data['username']]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        sendError('Usuario no encontrado', 401);
+    }
+    
+    // Verificar contraseña (todas las contraseñas de prueba son: password)
+    // Hash: $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+    if (!password_verify($data['password'], $user['password_hash'])) {
+        sendError('Contraseña incorrecta', 401);
+    }
+    
+    // Login exitoso
+    sendResponse([
+        'success' => true,
+        'user' => [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'name' => $user['name'],
+            'email' => $user['email'],
+            'role' => $user['role']
+        ],
+        'message' => 'Login exitoso'
+    ]);
+    
+} catch (Exception $e) {
+    sendError('Error en el servidor: ' . $e->getMessage(), 500);
+}
+?>
+EOF
+
 # Crear .htaccess básico para el frontend
 sudo tee "$WEB_DIR/.htaccess" > /dev/null << 'EOF'
 RewriteEngine On
@@ -372,6 +443,7 @@ RewriteEngine On
 RewriteBase /clinica-delux/api/
 
 # Rutas de la API
+RewriteRule ^login/?$ login.php [L,QSA]
 RewriteRule ^health-check/?$ health-check.php [L,QSA]
 RewriteRule ^appointments/?$ appointments.php [L,QSA]
 RewriteRule ^appointments/([0-9]+)/?$ appointments.php?id=$1 [L,QSA]
@@ -382,6 +454,7 @@ RewriteRule ^patients/([0-9]+)/?$ patients.php?id=$1 [L,QSA]
 RewriteRule ^disciplines/?$ disciplines.php [L,QSA]
 RewriteRule ^disciplines/([^/]+)/?$ disciplines.php?id=$1 [L,QSA]
 RewriteRule ^send-email/?$ send-email.php [L,QSA]
+RewriteRule ^send-email-fallback/?$ send-email-fallback.php [L,QSA]
 
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
@@ -440,23 +513,26 @@ log_header "🎉 Deploy completado exitosamente!"
 echo ""
 log_info "📱 Información de acceso:"
 echo "   🌐 URL: http://localhost/clinica-delux/"
-echo "   👤 Usuarios de prueba:"
-echo "      - admin / admin123 (Administrador)"
-echo "      - gerente / gerente123 (Gerente)"
-echo "      - profesional1 / prof123 (Profesional)"
-echo "      - recepcion / rec123 (Recepcionista)"
+echo "   👤 Usuarios de prueba (contraseña: password):"
+echo "      - admin (Administrador)"
+echo "      - gerente (Gerente)"
+echo "      - profesional1 (Profesional)"
+echo "      - recepcion (Recepcionista)"
 echo ""
 log_info "🧪 Para verificar:"
 echo "   API: curl http://localhost/clinica-delux/api/health-check"
+echo "   Login: curl -X POST http://localhost/clinica-delux/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"password\"}'"
 echo "   Frontend: Abre http://localhost/clinica-delux/ en tu navegador"
 echo ""
 log_info "🏥 Datos incluidos:"
 echo "   - 10 disciplinas médicas"
 echo "   - Usuarios de prueba configurados"
 echo "   - Sistema configurado para Ciudad de México (GMT-6)"
+echo "   - Login funcional con base de datos"
 echo ""
 log_warning "📝 Notas importantes:"
 echo "   - La aplicación está en /var/www/html/clinica-delux/"
 echo "   - Base de datos: $DB_NAME"
 echo "   - Zona horaria: América/Ciudad_de_México"
+echo "   - Contraseña de prueba para todos los usuarios: password"
 echo "   - Cambia las credenciales por defecto en producción"
