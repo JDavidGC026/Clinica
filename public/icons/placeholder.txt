@@ -1,0 +1,26 @@
+# Iconos de la Aplicación
+
+Para completar la configuración PWA, necesitas agregar los siguientes iconos en esta carpeta:
+
+- icon-72x72.png
+- icon-96x96.png  
+- icon-128x128.png
+- icon-144x144.png
+- icon-152x152.png
+- icon-192x192.png
+- icon-384x384.png
+- icon-512x512.png
+
+También iconos para shortcuts:
+- shortcut-appointment.png (96x96)
+- shortcut-calendar.png (96x96)  
+- shortcut-patients.png (96x96)
+
+Puedes usar el generador de iconos incluido en src/utils/iconGenerator.js
+o crear tus propios iconos con el logo de la clínica.
+
+Los iconos deben tener:
+- Fondo con los colores de la marca (#d946ef a #a855f7)
+- Símbolo médico (cruz) en blanco
+- Bordes redondeados (20% del tamaño)
+- Formato PNG con transparencia

@@ -16,6 +16,9 @@ import DisciplineManager from '@/components/DisciplineManager';
 import ReportManager from '@/components/ReportManager';
 import FinanceManager from '@/components/FinanceManager';
 import ProfessionalPortal from '@/components/ProfessionalPortal';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import PWAUpdateNotification from '@/components/PWAUpdateNotification';
+import OfflineIndicator from '@/components/OfflineIndicator';
 
 const ROLES = {
   ADMIN: 'Administrador',
@@ -47,6 +50,17 @@ function App() {
       if (!isViewAllowed(currentView, parsedUser.role)) {
         setCurrentView('dashboard');
       }
+    }
+
+    // Manejar parámetros URL para PWA shortcuts
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    const view = urlParams.get('view');
+    
+    if (action === 'new-appointment' && savedAuth === 'true') {
+      setCurrentView('appointments');
+    } else if (view && savedAuth === 'true') {
+      setCurrentView(view);
     }
   }, []);
 
@@ -177,7 +191,6 @@ function App() {
     );
   }
 
-
   const renderContent = () => {
     if (currentUser && !isViewAllowed(currentView, currentUser.role)) {
       return (
@@ -222,6 +235,8 @@ function App() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary to-accent-alt">
         <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} />
         <Toaster />
+        <PWAInstallPrompt />
+        <OfflineIndicator />
       </div>
     );
   }
@@ -281,6 +296,9 @@ function App() {
       </div>
 
       <Toaster />
+      <PWAInstallPrompt />
+      <PWAUpdateNotification />
+      <OfflineIndicator />
     </div>
   );
 }

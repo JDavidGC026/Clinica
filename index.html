@@ -5,11 +5,106 @@
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
 		<meta name="generator" content="Hostinger Horizons" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		
+		<!-- PWA Meta Tags -->
+		<meta name="theme-color" content="#d946ef" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="apple-mobile-web-app-title" content="GMD Sistema" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="application-name" content="GMD Sistema" />
+		
+		<!-- Apple Touch Icons -->
+		<link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+		
+		<!-- Manifest -->
+		<link rel="manifest" href="/manifest.json" />
+		
+		<!-- SEO Meta Tags -->
 		<title>PsicoClinic - Sistema de Gestión</title>
 		<meta name="description" content="Sistema de gestión interno para clínica de psicología - Administración de citas, psicólogos y pacientes" />
+		<meta name="keywords" content="clínica, gestión, citas médicas, pacientes, profesionales, sistema médico" />
+		<meta name="author" content="Grupo Médico Delux" />
+		
+		<!-- Open Graph Meta Tags -->
+		<meta property="og:title" content="Grupo Médico Delux - Sistema de Gestión" />
+		<meta property="og:description" content="Sistema de gestión interno para clínica médica" />
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="/icons/icon-512x512.png" />
+		
+		<!-- Twitter Card Meta Tags -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Grupo Médico Delux - Sistema de Gestión" />
+		<meta name="twitter:description" content="Sistema de gestión interno para clínica médica" />
+		<meta name="twitter:image" content="/icons/icon-512x512.png" />
+		
+		<!-- Preload critical resources -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		
+		<!-- Security Headers -->
+		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+		<meta http-equiv="X-Frame-Options" content="DENY" />
+		<meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+		
+		<!-- Splash Screen Styles for iOS -->
+		<style>
+			/* iOS Splash Screen */
+			@media (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) {
+				.splash-screen {
+					background: linear-gradient(135deg, #d946ef, #a855f7);
+					position: fixed;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					z-index: 9999;
+				}
+			}
+		</style>
 	</head>
 	<body>
+		<!-- iOS Splash Screen -->
+		<div id="splash-screen" class="splash-screen" style="display: none;">
+			<div style="text-align: center; color: white;">
+				<div style="width: 80px; height: 80px; background: white; border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+					<div style="width: 40px; height: 40px; background: #d946ef; border-radius: 8px;"></div>
+				</div>
+				<h1 style="font-size: 24px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">GMD Sistema</h1>
+				<p style="font-size: 16px; margin: 8px 0 0; opacity: 0.8; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Cargando...</p>
+			</div>
+		</div>
+		
 		<div id="root"></div>
 		<script type="module" src="/src/main.jsx"></script>
+		
+		<!-- PWA Installation Script -->
+		<script>
+			// Mostrar splash screen en iOS
+			if (window.navigator.standalone) {
+				document.getElementById('splash-screen').style.display = 'flex';
+				setTimeout(() => {
+					document.getElementById('splash-screen').style.display = 'none';
+				}, 2000);
+			}
+			
+			// Registrar Service Worker
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', () => {
+					navigator.serviceWorker.register('/sw.js')
+						.then(registration => {
+							console.log('SW registrado: ', registration);
+						})
+						.catch(registrationError => {
+							console.log('SW registro falló: ', registrationError);
+						});
+				});
+			}
+		</script>
 	</body>
 </html>
