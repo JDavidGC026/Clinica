@@ -1,7 +1,8 @@
-// Servicio de email que simula el envío usando templates internos
+// Servicio de email REAL que envía correos usando Gmail SMTP
 class EmailService {
   constructor() {
     this.config = this.loadConfig();
+    this.isRealSendingEnabled = true; // Cambiar a false para modo simulación
   }
 
   loadConfig() {
@@ -10,12 +11,12 @@ class EmailService {
       return JSON.parse(saved);
     }
     return {
-      smtpHost: '',
+      smtpHost: 'smtp.gmail.com',
       smtpPort: 587,
       smtpUser: '',
       smtpPassword: '',
       fromEmail: '',
-      fromName: ''
+      fromName: 'Clínica Delux'
     };
   }
 
@@ -586,7 +587,7 @@ ${clinicName}
     `;
   }
 
-  // Método principal para enviar email
+  // Método principal para enviar email REAL
   async sendEmail(type, recipientEmail, data = {}) {
     try {
       const template = this.getEmailTemplate(type, data);
@@ -594,39 +595,99 @@ ${clinicName}
         throw new Error(`Template de tipo '${type}' no encontrado`);
       }
 
-      // Simular envío de email (en producción aquí iría la lógica real de envío)
-      console.log('📧 Enviando email:', {
-        to: recipientEmail,
-        subject: template.subject,
-        type: type,
-        data: data
-      });
+      // Verificar configuración SMTP
+      if (!this.config.smtpUser || !this.config.smtpPassword) {
+        throw new Error('Configuración SMTP incompleta. Configure las credenciales de Gmail en Configuración.');
+      }
 
-      // Simular delay de envío
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (this.isRealSendingEnabled) {
+        // ENVÍO REAL usando la API PHP
+        const emailData = {
+          to: recipientEmail,
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+          smtp_user: this.config.smtpUser,
+          smtp_password: this.config.smtpPassword,
+          from_email: this.config.fromEmail || this.config.smtpUser,
+          from_name: this.config.fromName || 'Clínica Delux',
+          type: type
+        };
 
-      // Guardar en historial
-      const emailHistory = {
-        id: Date.now(),
-        type: type,
-        recipient: recipientEmail,
-        subject: template.subject,
-        sentAt: new Date().toISOString(),
-        status: 'enviado'
-      };
+        const response = await fetch('/api/phpmailer-send.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(emailData)
+        });
 
-      const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
-      const updatedHistory = [emailHistory, ...currentHistory];
-      localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
-      
-      // Disparar evento para actualizar UI
-      window.dispatchEvent(new Event('storage'));
+        const result = await response.json();
 
-      return {
-        success: true,
-        messageId: `msg_${Date.now()}`,
-        template: template
-      };
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Error al enviar email');
+        }
+
+        // Guardar en historial local también
+        const emailHistory = {
+          id: Date.now(),
+          type: type,
+          recipient: recipientEmail,
+          subject: template.subject,
+          sentAt: new Date().toISOString(),
+          status: 'enviado'
+        };
+
+        const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
+        const updatedHistory = [emailHistory, ...currentHistory];
+        localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
+        
+        // Disparar evento para actualizar UI
+        window.dispatchEvent(new Event('storage'));
+
+        return {
+          success: true,
+          messageId: result.messageId,
+          method: 'Gmail SMTP Real',
+          template: template
+        };
+
+      } else {
+        // MODO SIMULACIÓN (para desarrollo)
+        console.log('📧 [SIMULACIÓN] Enviando email:', {
+          to: recipientEmail,
+          subject: template.subject,
+          type: type,
+          data: data
+        });
+
+        // Simular delay de envío
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Guardar en historial
+        const emailHistory = {
+          id: Date.now(),
+          type: type,
+          recipient: recipientEmail,
+          subject: template.subject,
+          sentAt: new Date().toISOString(),
+          status: 'enviado'
+        };
+
+        const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
+        const updatedHistory = [emailHistory, ...currentHistory];
+        localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
+        
+        // Disparar evento para actualizar UI
+        window.dispatchEvent(new Event('storage'));
+
+        return {
+          success: true,
+          messageId: `sim_${Date.now()}`,
+          method: 'Simulación',
+          template: template
+        };
+      }
 
     } catch (error) {
       console.error('Error enviando email:', error);
@@ -664,7 +725,7 @@ ${clinicName}
     return template;
   }
 
-  // Configurar SMTP (para futuro uso real)
+  // Configurar SMTP (para Gmail)
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
     localStorage.setItem('clinic_email_config', JSON.stringify(this.config));
@@ -672,6 +733,16 @@ ${clinicName}
 
   getConfig() {
     return this.config;
+  }
+
+  // Habilitar/deshabilitar envío real
+  setRealSending(enabled) {
+    this.isRealSendingEnabled = enabled;
+  }
+
+  // Verificar configuración
+  isConfigured() {
+    return !!(this.config.smtpUser && this.config.smtpPassword);
   }
 }
 

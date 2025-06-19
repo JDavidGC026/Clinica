@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Mail, Key, FileText, Briefcase, Server, Eye } from 'lucide-react';
+import { Save, Mail, Key, FileText, Briefcase, Server, Eye, Send, TestTube } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import EmailService from '@/services/EmailService';
@@ -9,16 +9,18 @@ const CLINIC_NAME_DEFAULT = "Clínica Delux";
 
 const SettingsManager = () => {
   const [emailConfig, setEmailConfig] = useState({
-    smtpHost: '',
+    smtpHost: 'smtp.gmail.com',
     smtpPort: 587,
     smtpUser: '',
     smtpPassword: '',
     fromEmail: '',
-    fromName: ''
+    fromName: 'Clínica Delux'
   });
   const [clinicName, setClinicName] = useState(CLINIC_NAME_DEFAULT);
   const [clinicAddress, setClinicAddress] = useState('');
   const [clinicPhone, setClinicPhone] = useState('');
+  const [testEmail, setTestEmail] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     // Cargar configuración de email
@@ -108,6 +110,59 @@ const SettingsManager = () => {
     });
   };
 
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      toast({
+        title: 'Error',
+        description: 'Por favor ingresa un email de prueba.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!emailConfig.smtpUser || !emailConfig.smtpPassword) {
+      toast({
+        title: 'Configuración incompleta',
+        description: 'Por favor configura las credenciales SMTP de Gmail primero.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsTesting(true);
+
+    try {
+      // Guardar configuración antes de probar
+      EmailService.updateConfig(emailConfig);
+
+      const testData = {
+        patient_name: 'Paciente de Prueba',
+        professional_name: 'Dr. García (Ejemplo)',
+        appointment_date: '15 de enero de 2024 a las 10:00',
+        appointment_type: 'Consulta de Prueba',
+        folio: 'CDX-TEST-' + Date.now()
+      };
+
+      const result = await EmailService.sendEmail('appointment-confirmation', testEmail, testData);
+
+      if (result.success) {
+        toast({
+          title: '✅ Email enviado exitosamente!',
+          description: `Email de prueba enviado a ${testEmail} usando ${result.method}`,
+        });
+      }
+
+    } catch (error) {
+      toast({
+        title: 'Error al enviar email',
+        description: error.message || 'Verifica las credenciales SMTP de Gmail.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -179,44 +234,24 @@ const SettingsManager = () => {
           <div>
             <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center">
               <Server className="w-5 h-5 mr-2 text-primary" />
-              Configuración de Email SMTP
+              Configuración de Gmail SMTP
             </h2>
-            <div className="bg-muted/30 p-4 rounded-lg mb-4">
-              <p className="text-sm text-muted-foreground">
-                <strong>Nota:</strong> Actualmente el sistema simula el envío de correos y genera templates HTML. 
-                Para envío real, configura estos parámetros SMTP que serán utilizados en producción.
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4 border border-blue-200 dark:border-blue-800">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📧 Configuración de Gmail</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                Para usar Gmail SMTP, necesitas generar una <strong>"Contraseña de aplicación"</strong>:
               </p>
+              <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                <li>1. Ve a <a href="https://myaccount.google.com/security" target="_blank" className="underline">Configuración de seguridad de Google</a></li>
+                <li>2. Habilita "Verificación en 2 pasos"</li>
+                <li>3. Genera una "Contraseña de aplicación" específica</li>
+                <li>4. Usa esa contraseña aquí (no tu contraseña normal)</li>
+              </ol>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Servidor SMTP
-                </label>
-                <input
-                  type="text"
-                  name="smtpHost"
-                  value={emailConfig.smtpHost}
-                  onChange={handleEmailConfigChange}
-                  className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="smtp.gmail.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Puerto SMTP
-                </label>
-                <input
-                  type="number"
-                  name="smtpPort"
-                  value={emailConfig.smtpPort}
-                  onChange={handleEmailConfigChange}
-                  className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="587"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Usuario SMTP
+                  Email de Gmail *
                 </label>
                 <input
                   type="email"
@@ -225,11 +260,12 @@ const SettingsManager = () => {
                   onChange={handleEmailConfigChange}
                   className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   placeholder="tu-email@gmail.com"
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Contraseña SMTP
+                  Contraseña de Aplicación *
                 </label>
                 <input
                   type="password"
@@ -237,7 +273,8 @@ const SettingsManager = () => {
                   value={emailConfig.smtpPassword}
                   onChange={handleEmailConfigChange}
                   className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="Contraseña o App Password"
+                  placeholder="Contraseña de aplicación de Gmail"
+                  required
                 />
               </div>
               <div>
@@ -252,6 +289,7 @@ const SettingsManager = () => {
                   className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   placeholder="noreply@clinicadelux.com"
                 />
+                <p className="text-xs text-muted-foreground mt-1">Deja vacío para usar el email de Gmail</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
@@ -266,6 +304,35 @@ const SettingsManager = () => {
                   placeholder="Clínica Delux"
                 />
               </div>
+            </div>
+
+            {/* Prueba de Email */}
+            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <h4 className="font-medium text-green-900 dark:text-green-100 mb-3 flex items-center">
+                <TestTube className="w-4 h-4 mr-2" />
+                Probar Envío de Email
+              </h4>
+              <div className="flex gap-3">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="email-de-prueba@ejemplo.com"
+                  className="flex-1 px-3 py-2 border border-green-300 dark:border-green-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-green-900/30 text-foreground"
+                />
+                <Button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={isTesting || !emailConfig.smtpUser || !emailConfig.smtpPassword}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {isTesting ? 'Enviando...' : 'Enviar Prueba'}
+                </Button>
+              </div>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-2">
+                Esto enviará un email de confirmación de cita de ejemplo para probar la configuración.
+              </p>
             </div>
           </div>
 
