@@ -211,12 +211,18 @@ export default defineConfig({
 	},
 	build: {
 		rollupOptions: {
-			external: [
-				'@babel/parser',
-				'@babel/traverse',
-				'@babel/generator',
-				'@babel/types'
-			]
+			external: []
+		},
+		outDir: 'dist',
+		assetsDir: 'assets',
+		sourcemap: false,
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				drop_debugger: true
+			}
 		}
-	}
+	},
+	base: './'
 });
