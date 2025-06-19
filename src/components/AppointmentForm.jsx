@@ -34,8 +34,13 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
     }
 
     if (appointment) {
+      // Corregir el formato de fecha para evitar problemas de zona horaria
+      const appointmentDate = appointment.date ? new Date(appointment.date + 'T00:00:00') : null;
+      const formattedDate = appointmentDate ? appointmentDate.toISOString().split('T')[0] : '';
+      
       setFormData({
         ...appointment,
+        date: formattedDate,
         professionalId: appointment.professionalId || appointment.psychologistId,
         professionalName: appointment.professionalName || appointment.psychologistName,
         cost: appointment.cost || '',
@@ -104,7 +109,23 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Asegurar que la fecha se mantenga correcta sin conversión de zona horaria
+    const submitData = {
+      ...formData,
+      date: formData.date // Mantener el formato YYYY-MM-DD tal como está
+    };
+    
+    onSubmit(submitData);
+  };
+
+  // Obtener la fecha mínima (hoy) en formato local
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   return (
@@ -164,7 +185,15 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Fecha *</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required />
+                  <input 
+                    type="date" 
+                    name="date" 
+                    value={formData.date} 
+                    onChange={handleChange} 
+                    min={getTodayDate()}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Hora *</label>

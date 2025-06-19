@@ -27,7 +27,7 @@ const ROLES = {
   RECEPTIONIST: 'Recepcionista',
 };
 
-const CLINIC_NAME = "Grupo Médico Delux";
+const CLINIC_NAME = "Clínica Delux";
 
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');

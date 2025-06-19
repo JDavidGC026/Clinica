@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import EmailService from '@/services/EmailService';
 
-const CLINIC_NAME_DEFAULT = "Grupo Médico Delux";
+const CLINIC_NAME_DEFAULT = "Clínica Delux";
 
 const SettingsManager = () => {
   const [emailConfig, setEmailConfig] = useState({
@@ -38,11 +38,17 @@ const SettingsManager = () => {
     const savedAddress = localStorage.getItem('clinic_address');
     if (savedAddress) {
       setClinicAddress(savedAddress);
+    } else {
+      localStorage.setItem('clinic_address', 'Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México');
+      setClinicAddress('Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México');
     }
 
     const savedPhone = localStorage.getItem('clinic_phone');
     if (savedPhone) {
       setClinicPhone(savedPhone);
+    } else {
+      localStorage.setItem('clinic_phone', '+52 55 1234 5678');
+      setClinicPhone('+52 55 1234 5678');
     }
   }, []);
 
@@ -90,9 +96,9 @@ const SettingsManager = () => {
     const testData = {
       patient_name: 'Juan Pérez (Ejemplo)',
       professional_name: 'Dr. García (Ejemplo)',
-      appointment_date: '15 de Enero de 2024 a las 10:00',
+      appointment_date: '15 de enero de 2024 a las 10:00',
       appointment_type: 'Consulta General',
-      folio: 'GMD-240115-TEST'
+      folio: 'CDX-240115-TEST'
     };
 
     EmailService.previewTemplate('appointment-confirmation', testData);
@@ -159,6 +165,13 @@ const SettingsManager = () => {
                   placeholder="Dirección completa de la clínica"
                 />
               </div>
+            </div>
+            
+            <div className="mt-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <h4 className="font-medium text-card-foreground mb-2">⏰ Zona Horaria Configurada:</h4>
+              <p className="text-sm text-muted-foreground">
+                <strong>Ciudad de México (GMT-6)</strong> - Todas las fechas y horarios del sistema están configurados para la zona horaria de México.
+              </p>
             </div>
           </div>
           
@@ -237,7 +250,7 @@ const SettingsManager = () => {
                   value={emailConfig.fromEmail}
                   onChange={handleEmailConfigChange}
                   className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="noreply@tuclinica.com"
+                  placeholder="noreply@clinicadelux.com"
                 />
               </div>
               <div>
@@ -250,7 +263,7 @@ const SettingsManager = () => {
                   value={emailConfig.fromName}
                   onChange={handleEmailConfigChange}
                   className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="Tu Clínica"
+                  placeholder="Clínica Delux"
                 />
               </div>
             </div>
@@ -273,6 +286,7 @@ const SettingsManager = () => {
                 <li>• Cancelaciones</li>
                 <li>• Mensajes de bienvenida</li>
                 <li>• Notificaciones para profesionales</li>
+                <li>• Formato de fecha y hora para Ciudad de México</li>
               </ul>
               <Button type="button" onClick={handleTestEmail} variant="outline" size="sm">
                 <Eye className="w-4 h-4 mr-2" />

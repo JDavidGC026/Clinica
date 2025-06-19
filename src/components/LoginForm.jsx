@@ -64,8 +64,9 @@ const LoginForm = ({ onLogin }) => {
           >
             <Lock className="w-10 h-10 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-white mb-2">MultiClinic</h1>
-          <p className="text-purple-200">Sistema de Gestión Interno</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Clínica Delux</h1>
+          <p className="text-purple-200">Sistema de Gestión Médica</p>
+          <p className="text-purple-300 text-sm mt-2">🇲🇽 Ciudad de México, México</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

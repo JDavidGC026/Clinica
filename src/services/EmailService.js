@@ -21,9 +21,9 @@ class EmailService {
 
   // Templates de correo internos
   getEmailTemplate(type, data = {}) {
-    const clinicName = localStorage.getItem('clinic_name') || 'Grupo Médico Delux';
-    const clinicAddress = localStorage.getItem('clinic_address') || 'Dirección de la clínica';
-    const clinicPhone = localStorage.getItem('clinic_phone') || 'Teléfono de contacto';
+    const clinicName = localStorage.getItem('clinic_name') || 'Clínica Delux';
+    const clinicAddress = localStorage.getItem('clinic_address') || 'Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México';
+    const clinicPhone = localStorage.getItem('clinic_phone') || '+52 55 1234 5678';
     
     const templates = {
       'appointment-confirmation': {
@@ -61,8 +61,35 @@ class EmailService {
     return templates[type] || null;
   }
 
+  // Formatear fecha y hora para Ciudad de México
+  formatMexicoDateTime(dateString, timeString = null) {
+    const date = new Date(dateString + (timeString ? `T${timeString}:00` : 'T00:00:00'));
+    
+    const options = {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    };
+
+    const timeOptions = {
+      timeZone: 'America/Mexico_City',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+
+    const formattedDate = date.toLocaleDateString('es-MX', options);
+    const formattedTime = timeString ? date.toLocaleTimeString('es-MX', timeOptions) : '';
+    
+    return timeString ? `${formattedDate} a las ${formattedTime}` : formattedDate;
+  }
+
   // Template HTML para confirmación de cita
   generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -80,7 +107,7 @@ class EmailService {
           .detail-label { font-weight: bold; color: #6b7280; }
           .detail-value { color: #111827; }
           .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
-          .button { display: inline-block; background: linear-gradient(135deg, #d946ef, #a855f7); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
         </style>
       </head>
       <body>
@@ -97,7 +124,7 @@ class EmailService {
               <h3 style="margin-top: 0; color: #d946ef;">Detalles de la Cita</h3>
               <div class="detail-row">
                 <span class="detail-label">Fecha y Hora:</span>
-                <span class="detail-value">${data.appointment_date || 'Por confirmar'}</span>
+                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Profesional:</span>
@@ -113,6 +140,10 @@ class EmailService {
                 <span class="detail-value">${data.folio}</span>
               </div>
               ` : ''}
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
             </div>
 
             <p><strong>Instrucciones importantes:</strong></p>
@@ -138,6 +169,8 @@ class EmailService {
 
   // Template texto plano para confirmación
   generateConfirmationText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
 ${clinicName} - Confirmación de Cita
 
@@ -146,7 +179,7 @@ Estimado/a ${data.patient_name || 'Paciente'},
 Su cita ha sido confirmada exitosamente.
 
 Detalles de la Cita:
-- Fecha y Hora: ${data.appointment_date || 'Por confirmar'}
+- Fecha y Hora: ${appointmentDateTime || 'Por confirmar'} (Horario de Ciudad de México)
 - Profesional: ${data.professional_name || 'Por asignar'}
 - Tipo de Consulta: ${data.appointment_type || 'Consulta General'}
 ${data.folio ? `- Folio: ${data.folio}` : ''}
@@ -164,6 +197,8 @@ ${clinicName}
 
   // Template HTML para recordatorio de cita
   generateReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -179,6 +214,7 @@ ${clinicName}
           .reminder-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
           .urgent { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; border: 1px solid #f59e0b; }
           .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
         </style>
       </head>
       <body>
@@ -196,10 +232,14 @@ ${clinicName}
             
             <div class="reminder-box">
               <h3 style="margin-top: 0; color: #f59e0b;">Detalles de su Cita</h3>
-              <p><strong>📅 Fecha y Hora:</strong> ${data.appointment_date || 'Por confirmar'}</p>
+              <p><strong>📅 Fecha y Hora:</strong> ${appointmentDateTime || 'Por confirmar'}</p>
               <p><strong>👨‍⚕️ Profesional:</strong> ${data.professional_name || 'Por asignar'}</p>
               <p><strong>🏥 Tipo de Consulta:</strong> ${data.appointment_type || 'Consulta General'}</p>
               ${data.folio ? `<p><strong>📋 Folio:</strong> ${data.folio}</p>` : ''}
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
             </div>
 
             <p><strong>Por favor confirme su asistencia respondiendo a este correo o llamando a nuestras oficinas.</strong></p>
@@ -224,6 +264,8 @@ ${clinicName}
 
   // Template texto para recordatorio
   generateReminderText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
 ${clinicName} - Recordatorio de Cita
 
@@ -231,7 +273,7 @@ Estimado/a ${data.patient_name || 'Paciente'},
 
 Le recordamos su próxima cita:
 
-📅 Fecha y Hora: ${data.appointment_date || 'Por confirmar'}
+📅 Fecha y Hora: ${appointmentDateTime || 'Por confirmar'} (Horario de Ciudad de México)
 👨‍⚕️ Profesional: ${data.professional_name || 'Por asignar'}
 🏥 Tipo de Consulta: ${data.appointment_type || 'Consulta General'}
 ${data.folio ? `📋 Folio: ${data.folio}` : ''}
@@ -249,6 +291,8 @@ ${clinicName}
 
   // Template para cancelación
   generateCancellationTemplate(data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -276,7 +320,7 @@ ${clinicName}
             
             <div class="cancellation-box">
               <h3 style="margin-top: 0; color: #ef4444;">Cita Cancelada</h3>
-              <p>Lamentamos informarle que su cita programada para el <strong>${data.appointment_date || 'fecha programada'}</strong> con <strong>${data.professional_name || 'nuestro profesional'}</strong> ha sido cancelada.</p>
+              <p>Lamentamos informarle que su cita programada para el <strong>${appointmentDateTime || 'fecha programada'}</strong> con <strong>${data.professional_name || 'nuestro profesional'}</strong> ha sido cancelada.</p>
               ${data.cancellation_reason ? `<p><strong>Motivo:</strong> ${data.cancellation_reason}</p>` : ''}
             </div>
 
@@ -298,12 +342,14 @@ ${clinicName}
   }
 
   generateCancellationText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
 ${clinicName} - Cancelación de Cita
 
 Estimado/a ${data.patient_name || 'Paciente'},
 
-Lamentamos informarle que su cita programada para el ${data.appointment_date || 'fecha programada'} con ${data.professional_name || 'nuestro profesional'} ha sido cancelada.
+Lamentamos informarle que su cita programada para el ${appointmentDateTime || 'fecha programada'} con ${data.professional_name || 'nuestro profesional'} ha sido cancelada.
 
 ${data.cancellation_reason ? `Motivo: ${data.cancellation_reason}` : ''}
 
@@ -390,6 +436,8 @@ ${clinicName}
 
   // Templates para profesionales
   generateProfessionalNewAppointmentTemplate(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -404,6 +452,7 @@ ${clinicName}
           .content { background: #eff6ff; padding: 30px; border-radius: 0 0 10px 10px; }
           .appointment-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
           .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
         </style>
       </head>
       <body>
@@ -418,10 +467,14 @@ ${clinicName}
             <div class="appointment-box">
               <h3 style="margin-top: 0; color: #3b82f6;">Nueva Cita en su Agenda</h3>
               <p><strong>👤 Paciente:</strong> ${data.patient_name || 'Nombre del paciente'}</p>
-              <p><strong>📅 Fecha y Hora:</strong> ${data.appointment_date || 'Fecha y hora'}</p>
+              <p><strong>📅 Fecha y Hora:</strong> ${appointmentDateTime || 'Fecha y hora'}</p>
               <p><strong>🏥 Tipo de Consulta:</strong> ${data.appointment_type || 'Consulta General'}</p>
               ${data.folio ? `<p><strong>📋 Folio:</strong> ${data.folio}</p>` : ''}
               ${data.patient_notes ? `<p><strong>📝 Notas:</strong> ${data.patient_notes}</p>` : ''}
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
             </div>
 
             <p>Puede ver los detalles completos en el sistema de gestión de la clínica.</p>
@@ -439,6 +492,8 @@ ${clinicName}
   }
 
   generateProfessionalNewAppointmentText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
     return `
 ${clinicName} - Nueva Cita Asignada
 
@@ -447,7 +502,7 @@ Hola ${data.professional_name || 'Doctor/a'},
 Se le ha asignado una nueva cita:
 
 👤 Paciente: ${data.patient_name || 'Nombre del paciente'}
-📅 Fecha y Hora: ${data.appointment_date || 'Fecha y hora'}
+📅 Fecha y Hora: ${appointmentDateTime || 'Fecha y hora'} (Horario de Ciudad de México)
 🏥 Tipo de Consulta: ${data.appointment_type || 'Consulta General'}
 ${data.folio ? `📋 Folio: ${data.folio}` : ''}
 ${data.patient_notes ? `📝 Notas: ${data.patient_notes}` : ''}
@@ -474,6 +529,7 @@ ${clinicName}
           .schedule-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8b5cf6; }
           .appointment-item { padding: 10px; margin: 5px 0; background: #f3f4f6; border-radius: 4px; }
           .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
         </style>
       </head>
       <body>
@@ -492,6 +548,10 @@ ${clinicName}
 ${data.daily_schedule}
                 </div>
               ` : '<p>No tiene citas programadas para mañana.</p>'}
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
             </div>
 
             <p>Recuerde revisar las notas de cada paciente antes de las consultas.</p>
@@ -514,7 +574,7 @@ ${clinicName} - Su Agenda para Mañana
 
 Hola ${data.professional_name || 'Doctor/a'},
 
-Este es un resumen de su agenda para mañana:
+Este es un resumen de su agenda para mañana (Horario de Ciudad de México):
 
 ${data.daily_schedule || 'No tiene citas programadas para mañana.'}
 

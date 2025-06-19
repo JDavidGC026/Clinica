@@ -3,16 +3,16 @@
 	<head>
 		<meta charset="UTF-8" />
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
-		<meta name="generator" content="Hostinger Horizons" />
+		<meta name="generator" content="Clínica Delux" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		
 		<!-- PWA Meta Tags -->
 		<meta name="theme-color" content="#d946ef" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="GMD Sistema" />
+		<meta name="apple-mobile-web-app-title" content="Clínica Delux" />
 		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="application-name" content="GMD Sistema" />
+		<meta name="application-name" content="Clínica Delux" />
 		
 		<!-- Apple Touch Icons -->
 		<link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
@@ -23,21 +23,27 @@
 		<link rel="manifest" href="/manifest.json" />
 		
 		<!-- SEO Meta Tags -->
-		<title>PsicoClinic - Sistema de Gestión</title>
-		<meta name="description" content="Sistema de gestión interno para clínica de psicología - Administración de citas, psicólogos y pacientes" />
-		<meta name="keywords" content="clínica, gestión, citas médicas, pacientes, profesionales, sistema médico" />
-		<meta name="author" content="Grupo Médico Delux" />
+		<title>Clínica Delux - Sistema de Gestión Médica</title>
+		<meta name="description" content="Sistema de gestión interno para Clínica Delux - Administración de citas, profesionales y pacientes en Ciudad de México, México" />
+		<meta name="keywords" content="clínica, gestión, citas médicas, pacientes, profesionales, sistema médico, Ciudad de México, México, CDMX" />
+		<meta name="author" content="Clínica Delux" />
+		<meta name="geo.region" content="MX-CMX" />
+		<meta name="geo.placename" content="Ciudad de México" />
+		<meta name="geo.position" content="19.4326;-99.1332" />
+		<meta name="ICBM" content="19.4326, -99.1332" />
 		
 		<!-- Open Graph Meta Tags -->
-		<meta property="og:title" content="Grupo Médico Delux - Sistema de Gestión" />
-		<meta property="og:description" content="Sistema de gestión interno para clínica médica" />
+		<meta property="og:title" content="Clínica Delux - Sistema de Gestión Médica" />
+		<meta property="og:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
 		<meta property="og:type" content="website" />
 		<meta property="og:image" content="/icons/icon-512x512.png" />
+		<meta property="og:locale" content="es_MX" />
+		<meta property="og:site_name" content="Clínica Delux" />
 		
 		<!-- Twitter Card Meta Tags -->
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="Grupo Médico Delux - Sistema de Gestión" />
-		<meta name="twitter:description" content="Sistema de gestión interno para clínica médica" />
+		<meta name="twitter:title" content="Clínica Delux - Sistema de Gestión Médica" />
+		<meta name="twitter:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
 		<meta name="twitter:image" content="/icons/icon-512x512.png" />
 		
 		<!-- Preload critical resources -->
@@ -48,6 +54,12 @@
 		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
 		<meta http-equiv="X-Frame-Options" content="DENY" />
 		<meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:;" />
+		
+		<!-- Timezone and Locale Configuration -->
+		<meta name="timezone" content="America/Mexico_City" />
+		<meta name="locale" content="es-MX" />
+		<meta name="currency" content="MXN" />
 		
 		<!-- Splash Screen Styles for iOS -->
 		<style>
@@ -66,31 +78,208 @@
 					z-index: 9999;
 				}
 			}
+			
+			/* Loading Screen */
+			.loading-screen {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(135deg, #d946ef, #a855f7);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				z-index: 9998;
+				color: white;
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			}
+			
+			.loading-logo {
+				width: 80px;
+				height: 80px;
+				background: white;
+				border-radius: 20px;
+				margin-bottom: 20px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				animation: pulse 2s infinite;
+			}
+			
+			.loading-cross {
+				width: 40px;
+				height: 40px;
+				position: relative;
+			}
+			
+			.loading-cross::before,
+			.loading-cross::after {
+				content: '';
+				position: absolute;
+				background: #d946ef;
+				border-radius: 2px;
+			}
+			
+			.loading-cross::before {
+				width: 6px;
+				height: 40px;
+				left: 17px;
+				top: 0;
+			}
+			
+			.loading-cross::after {
+				width: 40px;
+				height: 6px;
+				left: 0;
+				top: 17px;
+			}
+			
+			@keyframes pulse {
+				0%, 100% { transform: scale(1); }
+				50% { transform: scale(1.05); }
+			}
+			
+			.loading-text {
+				font-size: 24px;
+				font-weight: 600;
+				margin-bottom: 8px;
+			}
+			
+			.loading-subtitle {
+				font-size: 16px;
+				opacity: 0.9;
+				margin-bottom: 4px;
+			}
+			
+			.loading-location {
+				font-size: 14px;
+				opacity: 0.8;
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+			
+			.mexico-flag {
+				font-size: 16px;
+			}
 		</style>
+		
+		<!-- Timezone Detection and Configuration -->
+		<script>
+			// Configurar zona horaria de México al cargar la página
+			(function() {
+				// Detectar si el navegador soporta Intl
+				if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+					// Forzar zona horaria de Ciudad de México
+					window.CLINIC_TIMEZONE = 'America/Mexico_City';
+					window.CLINIC_LOCALE = 'es-MX';
+					window.CLINIC_CURRENCY = 'MXN';
+					
+					// Función global para formatear fechas en zona horaria de México
+					window.formatMexicoDate = function(date, options = {}) {
+						const defaultOptions = {
+							timeZone: 'America/Mexico_City',
+							locale: 'es-MX',
+							...options
+						};
+						
+						if (typeof date === 'string') {
+							date = new Date(date);
+						}
+						
+						return date.toLocaleDateString('es-MX', defaultOptions);
+					};
+					
+					// Función global para formatear fecha y hora en zona horaria de México
+					window.formatMexicoDateTime = function(date, options = {}) {
+						const defaultOptions = {
+							timeZone: 'America/Mexico_City',
+							locale: 'es-MX',
+							year: 'numeric',
+							month: 'long',
+							day: 'numeric',
+							hour: '2-digit',
+							minute: '2-digit',
+							...options
+						};
+						
+						if (typeof date === 'string') {
+							date = new Date(date);
+						}
+						
+						return date.toLocaleDateString('es-MX', defaultOptions);
+					};
+					
+					// Función para obtener la fecha actual en México
+					window.getMexicoToday = function() {
+						const now = new Date();
+						const mexicoTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+						return mexicoTime.toISOString().split('T')[0];
+					};
+					
+					// Configurar localStorage con información de la clínica
+					localStorage.setItem('clinic_timezone', 'America/Mexico_City');
+					localStorage.setItem('clinic_locale', 'es-MX');
+					localStorage.setItem('clinic_currency', 'MXN');
+					localStorage.setItem('clinic_country', 'México');
+					localStorage.setItem('clinic_city', 'Ciudad de México');
+				}
+			})();
+		</script>
 	</head>
 	<body>
+		<!-- Loading Screen -->
+		<div id="loading-screen" class="loading-screen">
+			<div class="loading-logo">
+				<div class="loading-cross"></div>
+			</div>
+			<div class="loading-text">Clínica Delux</div>
+			<div class="loading-subtitle">Sistema de Gestión Médica</div>
+			<div class="loading-location">
+				<span class="mexico-flag">🇲🇽</span>
+				<span>Ciudad de México, México</span>
+			</div>
+		</div>
+		
 		<!-- iOS Splash Screen -->
 		<div id="splash-screen" class="splash-screen" style="display: none;">
 			<div style="text-align: center; color: white;">
-				<div style="width: 80px; height: 80px; background: white; border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-					<div style="width: 40px; height: 40px; background: #d946ef; border-radius: 8px;"></div>
+				<div class="loading-logo">
+					<div class="loading-cross"></div>
 				</div>
-				<h1 style="font-size: 24px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">GMD Sistema</h1>
-				<p style="font-size: 16px; margin: 8px 0 0; opacity: 0.8; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Cargando...</p>
+				<h1 style="font-size: 24px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Clínica Delux</h1>
+				<p style="font-size: 16px; margin: 8px 0 0; opacity: 0.8; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Sistema de Gestión Médica</p>
+				<p style="font-size: 14px; margin: 4px 0 0; opacity: 0.7; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">🇲🇽 Ciudad de México</p>
 			</div>
 		</div>
 		
 		<div id="root"></div>
 		<script type="module" src="/src/main.jsx"></script>
 		
-		<!-- PWA Installation Script -->
+		<!-- PWA Installation and Service Worker Script -->
 		<script>
-			// Mostrar splash screen en iOS
+			// Ocultar loading screen cuando la app esté lista
+			window.addEventListener('load', () => {
+				setTimeout(() => {
+					const loadingScreen = document.getElementById('loading-screen');
+					if (loadingScreen) {
+						loadingScreen.style.opacity = '0';
+						loadingScreen.style.transition = 'opacity 0.5s ease-out';
+						setTimeout(() => {
+							loadingScreen.style.display = 'none';
+						}, 500);
+					}
+				}, 1000);
+			});
+			
+			// Mostrar splash screen en iOS si es PWA
 			if (window.navigator.standalone) {
 				document.getElementById('splash-screen').style.display = 'flex';
 				setTimeout(() => {
 					document.getElementById('splash-screen').style.display = 'none';
-				}, 2000);
+				}, 2500);
 			}
 			
 			// Registrar Service Worker
@@ -98,12 +287,81 @@
 				window.addEventListener('load', () => {
 					navigator.serviceWorker.register('/sw.js')
 						.then(registration => {
-							console.log('SW registrado: ', registration);
+							console.log('Service Worker registrado exitosamente:', registration);
+							
+							// Verificar actualizaciones
+							registration.addEventListener('updatefound', () => {
+								const newWorker = registration.installing;
+								newWorker.addEventListener('statechange', () => {
+									if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+										// Nueva versión disponible
+										console.log('Nueva versión de la aplicación disponible');
+									}
+								});
+							});
 						})
 						.catch(registrationError => {
-							console.log('SW registro falló: ', registrationError);
+							console.log('Error al registrar Service Worker:', registrationError);
 						});
 				});
+			}
+			
+			// Configuración de zona horaria y localización
+			document.addEventListener('DOMContentLoaded', function() {
+				// Configurar meta tags dinámicamente
+				const now = new Date();
+				const mexicoTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+				
+				// Agregar información de tiempo de carga
+				const loadTime = document.createElement('meta');
+				loadTime.name = 'load-time';
+				loadTime.content = mexicoTime.toISOString();
+				document.head.appendChild(loadTime);
+				
+				// Configurar título dinámico con hora
+				const hour = mexicoTime.getHours();
+				let greeting = '';
+				if (hour >= 6 && hour < 12) greeting = 'Buenos días';
+				else if (hour >= 12 && hour < 18) greeting = 'Buenas tardes';
+				else greeting = 'Buenas noches';
+				
+				// Actualizar título de la página
+				document.title = `Clínica Delux - ${greeting} - Sistema de Gestión`;
+			});
+			
+			// Manejo de errores globales
+			window.addEventListener('error', function(e) {
+				console.error('Error global capturado:', e.error);
+			});
+			
+			window.addEventListener('unhandledrejection', function(e) {
+				console.error('Promise rechazada no manejada:', e.reason);
+			});
+			
+			// Configuración de rendimiento
+			if ('performance' in window) {
+				window.addEventListener('load', () => {
+					setTimeout(() => {
+						const perfData = performance.getEntriesByType('navigation')[0];
+						console.log('Tiempo de carga de la página:', perfData.loadEventEnd - perfData.fetchStart, 'ms');
+					}, 0);
+				});
+			}
+		</script>
+		
+		<!-- Configuración adicional para Apache -->
+		<script>
+			// Detectar si estamos en un entorno Apache
+			if (typeof window !== 'undefined') {
+				// Configurar rutas base para Apache
+				window.APACHE_BASE_PATH = window.location.pathname.replace(/\/[^\/]*$/, '') || '/';
+				
+				// Función para construir URLs relativas a Apache
+				window.buildApacheURL = function(path) {
+					const basePath = window.APACHE_BASE_PATH;
+					const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+					return basePath + (basePath.endsWith('/') ? '' : '/') + cleanPath;
+				};
 			}
 		</script>
 	</body>

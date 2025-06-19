@@ -1,15 +1,15 @@
 {
-  "name": "Grupo Médico Delux - Sistema de Gestión",
-  "short_name": "GMD Sistema",
-  "description": "Sistema de gestión interno para clínica médica - Administración de citas, profesionales y pacientes",
+  "name": "Clínica Delux - Sistema de Gestión Médica",
+  "short_name": "Clínica Delux",
+  "description": "Sistema de gestión interno para Clínica Delux - Administración de citas, profesionales y pacientes en Ciudad de México, México",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#d946ef",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "es",
-  "categories": ["medical", "productivity", "business"],
+  "lang": "es-MX",
+  "categories": ["medical", "productivity", "business", "health"],
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -104,14 +104,21 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Dashboard principal del sistema"
+      "label": "Dashboard principal del sistema - Clínica Delux"
     },
     {
       "src": "/screenshots/mobile-1.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Vista móvil del dashboard"
+      "label": "Vista móvil del dashboard - Clínica Delux"
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "dir": "ltr",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
