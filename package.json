@@ -7,6 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "build:prod": "NODE_ENV=production vite build",
+    "serve:local": "npm run build && npm run preview",
+    "test:build": "npm run build && node scripts/test-build.js",
+    "prepare:hostinger": "npm run build && node scripts/prepare-hostinger.js",
+    "clean": "rm -rf dist node_modules/.vite hostinger-deploy",
     "db:setup": "node src/database/setup.js",
     "db:migrate": "node src/database/migrate.js"
   },
