@@ -15,8 +15,8 @@ date_default_timezone_set('America/Mexico_City');
 
 // Configuración de base de datos
 $host = $_ENV['DB_HOST'] ?? 'localhost';
-$username = $_ENV['DB_USER'] ?? 'tu_usuario_mysql';
-$password = $_ENV['DB_PASSWORD'] ?? 'tu_password_mysql';
+$username = $_ENV['DB_USER'] ?? 'root';
+$password = $_ENV['DB_PASSWORD'] ?? '';
 $database = $_ENV['DB_NAME'] ?? 'clinica_delux';
 
 function getDatabase() {
