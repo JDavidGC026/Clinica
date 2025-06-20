@@ -14,8 +14,8 @@ date_default_timezone_set('America/Mexico_City');
 
 // Configuración de base de datos
 $host = $_ENV['DB_HOST'] ?? 'localhost';
-$username = $_ENV['DB_USER'] ?? 'tu_usuario_mysql';
-$password = $_ENV['DB_PASSWORD'] ?? 'tu_password_mysql';
+$username = $_ENV['DB_USER'] ?? 'root';
+$password = $_ENV['DB_PASSWORD'] ?? '';
 $database = $_ENV['DB_NAME'] ?? 'clinica_delux';
 
 try {
@@ -28,7 +28,7 @@ try {
     $pdo->exec("SET time_zone = '-06:00'");
     
     // Verificar que las tablas principales existan
-    $tables = ['disciplines', 'professionals', 'patients', 'appointments'];
+    $tables = ['disciplines', 'professionals', 'patients', 'appointments', 'users'];
     $existingTables = [];
     
     foreach ($tables as $table) {
@@ -50,7 +50,8 @@ try {
         'timezone' => 'America/Mexico_City',
         'server_time' => $mexicoTime->format('Y-m-d H:i:s T'),
         'tables' => $existingTables,
-        'mysql_timezone' => $pdo->query("SELECT @@session.time_zone as tz")->fetch()['tz']
+        'mysql_timezone' => $pdo->query("SELECT @@session.time_zone as tz")->fetch()['tz'],
+        'api_version' => '1.0.0'
     ], JSON_UNESCAPED_UNICODE);
     
 } catch (PDOException $e) {
@@ -58,6 +59,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Database connection failed',
+        'error' => $e->getMessage(),
         'clinic' => 'Clínica Delux',
         'location' => 'Ciudad de México, México',
         'timezone' => 'America/Mexico_City',
