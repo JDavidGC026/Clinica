@@ -4,7 +4,7 @@ require_once 'config.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_SERVER['REQUEST_URI'];
 $pathParts = explode('/', trim(parse_url($path, PHP_URL_PATH), '/'));
-$professionalId = $pathParts[2] ?? null;
+$professionalId = isset($_GET['id']) ? $_GET['id'] : null;
 
 try {
     $pdo = getDatabase();
@@ -22,6 +22,7 @@ try {
                 $professional = $stmt->fetch();
                 
                 if (!$professional) {
+                    logApiActivity('professionals', 'GET', 404, "Professional not found: ID $professionalId");
                     sendError('Professional not found', 404);
                 }
                 
@@ -30,6 +31,7 @@ try {
                     $professional['schedule'] = json_decode($professional['schedule'], true);
                 }
                 
+                logApiActivity('professionals', 'GET', 200, "Retrieved professional: ID $professionalId");
                 sendResponse($professional);
             } else {
                 $stmt = $pdo->query("
@@ -47,6 +49,7 @@ try {
                     }
                 }
                 
+                logApiActivity('professionals', 'GET', 200, "Retrieved all professionals: " . count($professionals) . " records");
                 sendResponse($professionals);
             }
             break;
@@ -57,6 +60,7 @@ try {
             $requiredFields = ['name', 'email', 'phone', 'disciplineId', 'license', 'experience', 'schedule'];
             foreach ($requiredFields as $field) {
                 if (!isset($data[$field])) {
+                    logApiActivity('professionals', 'POST', 400, "Missing required field: $field");
                     sendError("Missing required field: $field", 400);
                 }
             }
@@ -92,11 +96,13 @@ try {
                 $professional['schedule'] = json_decode($professional['schedule'], true);
             }
             
+            logApiActivity('professionals', 'POST', 201, "Created professional: ID $professionalId");
             sendResponse($professional, 201);
             break;
             
         case 'PUT':
             if (!$professionalId) {
+                logApiActivity('professionals', 'PUT', 400, "Professional ID required");
                 sendError('Professional ID required', 400);
             }
             
@@ -133,25 +139,30 @@ try {
                 $professional['schedule'] = json_decode($professional['schedule'], true);
             }
             
+            logApiActivity('professionals', 'PUT', 200, "Updated professional: ID $professionalId");
             sendResponse($professional);
             break;
             
         case 'DELETE':
             if (!$professionalId) {
+                logApiActivity('professionals', 'DELETE', 400, "Professional ID required");
                 sendError('Professional ID required', 400);
             }
             
             $stmt = $pdo->prepare("DELETE FROM professionals WHERE id = ?");
             $stmt->execute([$professionalId]);
             
+            logApiActivity('professionals', 'DELETE', 200, "Deleted professional: ID $professionalId");
             sendResponse(['success' => true]);
             break;
             
         default:
+            logApiActivity('professionals', $method, 405, "Method not allowed");
             sendError('Method not allowed', 405);
     }
     
 } catch (Exception $e) {
+    logApiActivity('professionals', $method, 500, "Error: " . $e->getMessage());
     sendError($e->getMessage());
 }
 ?>

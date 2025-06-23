@@ -3,6 +3,7 @@ require_once 'config.php';
 
 // Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    logApiActivity('send-email-fallback', $_SERVER['REQUEST_METHOD'], 405, "Method not allowed");
     sendError('Método no permitido', 405);
 }
 
@@ -10,6 +11,7 @@ $data = getRequestData();
 
 // Validar datos requeridos
 if (!isset($data['to']) || !isset($data['subject']) || !isset($data['html'])) {
+    logApiActivity('send-email-fallback', 'POST', 400, "Missing required fields");
     sendError('Faltan campos requeridos: to, subject, html', 400);
 }
 
@@ -26,6 +28,7 @@ try {
             'status' => 'enviado'
         ]);
         
+        logApiActivity('send-email-fallback', 'POST', 200, "Email sent successfully to: " . $data['to']);
         sendResponse([
             'success' => true,
             'message' => 'Email enviado exitosamente',
@@ -41,6 +44,7 @@ try {
             'status' => 'simulado'
         ]);
         
+        logApiActivity('send-email-fallback', 'POST', 200, "Email simulated (dev mode) to: " . $data['to']);
         sendResponse([
             'success' => true,
             'message' => 'Email simulado (modo desarrollo)',
@@ -59,6 +63,7 @@ try {
         'status' => 'error'
     ]);
     
+    logApiActivity('send-email-fallback', 'POST', 500, "Exception: " . $e->getMessage());
     sendError('Error al enviar email: ' . $e->getMessage(), 500);
 }
 
@@ -104,9 +109,12 @@ function saveEmailHistory($emailData) {
             $emailData['status']
         ]);
         
+        logApiActivity('email-history', 'INSERT', 200, "Email history saved: " . $emailData['type'] . " to " . $emailData['recipient']);
+        
     } catch (Exception $e) {
         // Si falla MySQL, no hacer nada (el email ya se procesó)
         error_log('Error guardando historial de email: ' . $e->getMessage());
+        logApiActivity('email-history', 'INSERT', 500, "Failed to save email history: " . $e->getMessage());
     }
 }
 ?>

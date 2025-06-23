@@ -3,6 +3,7 @@ require_once 'config.php';
 
 // Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    logApiActivity('send-email', $_SERVER['REQUEST_METHOD'], 405, "Method not allowed");
     sendError('Método no permitido', 405);
 }
 
@@ -10,6 +11,7 @@ $data = getRequestData();
 
 // Validar datos requeridos
 if (!isset($data['to']) || !isset($data['subject']) || !isset($data['html'])) {
+    logApiActivity('send-email', 'POST', 400, "Missing required fields");
     sendError('Faltan campos requeridos: to, subject, html', 400);
 }
 
@@ -25,6 +27,7 @@ $smtpConfig = [
 
 // Validar configuración SMTP
 if (empty($smtpConfig['username']) || empty($smtpConfig['password'])) {
+    logApiActivity('send-email', 'POST', 400, "Incomplete SMTP configuration");
     sendError('Configuración SMTP incompleta', 400);
 }
 
@@ -45,6 +48,7 @@ try {
             'status' => 'enviado'
         ]);
         
+        logApiActivity('send-email', 'POST', 200, "Email sent successfully to: " . $data['to']);
         sendResponse([
             'success' => true,
             'message' => 'Email enviado exitosamente',
@@ -59,6 +63,7 @@ try {
             'status' => 'error'
         ]);
         
+        logApiActivity('send-email', 'POST', 500, "Email sending failed: " . $result['error']);
         sendError($result['error'], 500);
     }
     
@@ -71,6 +76,7 @@ try {
         'status' => 'error'
     ]);
     
+    logApiActivity('send-email', 'POST', 500, "Exception: " . $e->getMessage());
     sendError('Error al enviar email: ' . $e->getMessage(), 500);
 }
 
@@ -127,9 +133,12 @@ function saveEmailHistory($emailData) {
             $emailData['status']
         ]);
         
+        logApiActivity('email-history', 'INSERT', 200, "Email history saved: " . $emailData['type'] . " to " . $emailData['recipient']);
+        
     } catch (Exception $e) {
         // Si falla MySQL, no hacer nada (el email ya se envió)
         error_log('Error guardando historial de email: ' . $e->getMessage());
+        logApiActivity('email-history', 'INSERT', 500, "Failed to save email history: " . $e->getMessage());
     }
 }
 ?>

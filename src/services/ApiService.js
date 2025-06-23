@@ -10,16 +10,8 @@ class ApiService {
     // Detectar automáticamente la URL base según el entorno
     const currentPath = window.location.pathname;
     
-    if (currentPath.includes('/public_html/')) {
-      // Hosting compartido con public_html
-      return currentPath.split('/public_html/')[0] + '/public_html/';
-    } else if (currentPath.includes('/html/')) {
-      // Hosting compartido con html
-      return currentPath.split('/html/')[0] + '/html/';
-    } else {
-      // Desarrollo local o raíz del dominio
-      return './';
-    }
+    // Siempre usar rutas relativas para mayor compatibilidad
+    return './';
   }
 
   log(level, message, data = null) {
@@ -46,6 +38,11 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
+    // Asegurarse de que el endpoint termine en .php
+    if (!endpoint.endsWith('.php')) {
+      endpoint = `${endpoint}.php`;
+    }
+    
     const url = `${this.baseURL}api/${endpoint}`;
     const startTime = Date.now();
 
@@ -64,23 +61,36 @@ class ApiService {
       });
 
       const duration = Date.now() - startTime;
-      const responseData = await response.json();
-
-      if (response.ok) {
-        this.log('info', `Petición exitosa: ${response.status} ${url} (${duration}ms)`, {
+      
+      try {
+        const responseData = await response.json();
+        
+        if (response.ok) {
+          this.log('info', `Petición exitosa: ${response.status} ${url} (${duration}ms)`, {
+            status: response.status,
+            duration,
+            dataSize: JSON.stringify(responseData).length
+          });
+          return responseData;
+        } else {
+          this.log('error', `Error HTTP: ${response.status} ${url} (${duration}ms)`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: responseData,
+            duration
+          });
+          throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (jsonError) {
+        // Si no se puede parsear como JSON
+        const textResponse = await response.text();
+        this.log('error', `Error al parsear JSON: ${url} (${duration}ms)`, {
           status: response.status,
-          duration,
-          dataSize: JSON.stringify(responseData).length
-        });
-        return responseData;
-      } else {
-        this.log('error', `Error HTTP: ${response.status} ${url} (${duration}ms)`, {
-          status: response.status,
-          statusText: response.statusText,
-          error: responseData,
+          responseText: textResponse,
+          jsonError: jsonError.message,
           duration
         });
-        throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Error al parsear respuesta: ${jsonError.message}`);
       }
 
     } catch (error) {
@@ -129,105 +139,105 @@ class ApiService {
 
   // Métodos específicos para cada entidad
   async getHealthCheck() {
-    return this.get('health-check.php');
+    return this.get('health-check');
   }
 
   // Usuarios
   async login(credentials) {
-    return this.post('login.php', credentials);
+    return this.post('login', credentials);
   }
 
   async getUsers() {
-    return this.get('users.php');
+    return this.get('users');
   }
 
   async createUser(userData) {
-    return this.post('users.php', userData);
+    return this.post('users', userData);
   }
 
   async updateUser(id, userData) {
-    return this.put(`users.php?id=${id}`, userData);
+    return this.put(`users?id=${id}`, userData);
   }
 
   async deleteUser(id) {
-    return this.delete(`users.php?id=${id}`);
+    return this.delete(`users?id=${id}`);
   }
 
   // Disciplinas
   async getDisciplines() {
-    return this.get('disciplines.php');
+    return this.get('disciplines');
   }
 
   async createDiscipline(disciplineData) {
-    return this.post('disciplines.php', disciplineData);
+    return this.post('disciplines', disciplineData);
   }
 
   async updateDiscipline(id, disciplineData) {
-    return this.put(`disciplines.php?id=${id}`, disciplineData);
+    return this.put(`disciplines?id=${id}`, disciplineData);
   }
 
   async deleteDiscipline(id) {
-    return this.delete(`disciplines.php?id=${id}`);
+    return this.delete(`disciplines?id=${id}`);
   }
 
   // Profesionales
   async getProfessionals() {
-    return this.get('professionals.php');
+    return this.get('professionals');
   }
 
   async createProfessional(professionalData) {
-    return this.post('professionals.php', professionalData);
+    return this.post('professionals', professionalData);
   }
 
   async updateProfessional(id, professionalData) {
-    return this.put(`professionals.php?id=${id}`, professionalData);
+    return this.put(`professionals?id=${id}`, professionalData);
   }
 
   async deleteProfessional(id) {
-    return this.delete(`professionals.php?id=${id}`);
+    return this.delete(`professionals?id=${id}`);
   }
 
   // Pacientes
   async getPatients() {
-    return this.get('patients.php');
+    return this.get('patients');
   }
 
   async createPatient(patientData) {
-    return this.post('patients.php', patientData);
+    return this.post('patients', patientData);
   }
 
   async updatePatient(id, patientData) {
-    return this.put(`patients.php?id=${id}`, patientData);
+    return this.put(`patients?id=${id}`, patientData);
   }
 
   async deletePatient(id) {
-    return this.delete(`patients.php?id=${id}`);
+    return this.delete(`patients?id=${id}`);
   }
 
   // Citas
   async getAppointments() {
-    return this.get('appointments.php');
+    return this.get('appointments');
   }
 
   async createAppointment(appointmentData) {
-    return this.post('appointments.php', appointmentData);
+    return this.post('appointments', appointmentData);
   }
 
   async updateAppointment(id, appointmentData) {
-    return this.put(`appointments.php?id=${id}`, appointmentData);
+    return this.put(`appointments?id=${id}`, appointmentData);
   }
 
   async deleteAppointment(id) {
-    return this.delete(`appointments.php?id=${id}`);
+    return this.delete(`appointments?id=${id}`);
   }
 
   // Emails
   async sendEmail(emailData) {
-    return this.post('send-email.php', emailData);
+    return this.post('send-email', emailData);
   }
 
   async sendEmailFallback(emailData) {
-    return this.post('send-email-fallback.php', emailData);
+    return this.post('send-email-fallback', emailData);
   }
 
   // Métodos de utilidad para logs

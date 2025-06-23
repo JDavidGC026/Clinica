@@ -247,8 +247,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             
             foreach ($tables as $tableName => $sql) {
-                $pdo->exec($sql);
-                $success[] = "✅ Tabla '$tableName' creada/verificada";
+                try {
+                    $pdo->exec($sql);
+                    $success[] = "✅ Tabla '$tableName' creada/verificada";
+                } catch (PDOException $e) {
+                    // Si hay un error en la sintaxis SQL, registrarlo pero continuar
+                    $errors[] = "Error creando tabla '$tableName': " . $e->getMessage();
+                    continue;
+                }
             }
             
             // Insertar datos de prueba
@@ -267,54 +273,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['psicologia-clinica', 'Psicología Clínica']
             ];
             
-            $stmt = $pdo->prepare("INSERT IGNORE INTO disciplines (id, name) VALUES (?, ?)");
-            foreach ($disciplines as $discipline) {
-                $stmt->execute($discipline);
+            try {
+                $stmt = $pdo->prepare("INSERT IGNORE INTO disciplines (id, name) VALUES (?, ?)");
+                foreach ($disciplines as $discipline) {
+                    $stmt->execute($discipline);
+                }
+                $success[] = "✅ Disciplinas médicas insertadas";
+            } catch (PDOException $e) {
+                $errors[] = "Error insertando disciplinas: " . $e->getMessage();
             }
-            $success[] = "✅ Disciplinas médicas insertadas";
             
             // Usuarios de prueba
-            $users = [
-                ['admin', password_hash('password', PASSWORD_DEFAULT), 'Administrador General', 'admin@clinicadelux.com', 'Administrador'],
-                ['gerente', password_hash('password', PASSWORD_DEFAULT), 'Gerente Principal', 'gerente@clinicadelux.com', 'Gerente'],
-                ['profesional1', password_hash('password', PASSWORD_DEFAULT), 'Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', 'Profesional'],
-                ['recepcion', password_hash('password', PASSWORD_DEFAULT), 'María López', 'maria.lopez@clinicadelux.com', 'Recepcionista']
-            ];
-            
-            $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)");
-            foreach ($users as $user) {
-                $stmt->execute($user);
+            try {
+                $users = [
+                    ['admin', password_hash('password', PASSWORD_DEFAULT), 'Administrador General', 'admin@clinicadelux.com', 'Administrador'],
+                    ['gerente', password_hash('password', PASSWORD_DEFAULT), 'Gerente Principal', 'gerente@clinicadelux.com', 'Gerente'],
+                    ['profesional1', password_hash('password', PASSWORD_DEFAULT), 'Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', 'Profesional'],
+                    ['recepcion', password_hash('password', PASSWORD_DEFAULT), 'María López', 'maria.lopez@clinicadelux.com', 'Recepcionista']
+                ];
+                
+                $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)");
+                foreach ($users as $user) {
+                    $stmt->execute($user);
+                }
+                $success[] = "✅ Usuarios de prueba creados";
+            } catch (PDOException $e) {
+                $errors[] = "Error insertando usuarios: " . $e->getMessage();
             }
-            $success[] = "✅ Usuarios de prueba creados";
             
             // Profesionales de ejemplo
-            $professionals = [
-                ['Dr. Ana García', 'ana.garcia@clinicadelux.com', '+52 55 1234 5678', 'medicina-general', 'COL-12345', '8 años', '{"monday":{"start":"09:00","end":"17:00","available":true},"tuesday":{"start":"09:00","end":"17:00","available":true},"wednesday":{"start":"09:00","end":"17:00","available":true},"thursday":{"start":"09:00","end":"17:00","available":true},"friday":{"start":"09:00","end":"15:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
-                ['Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', '+52 55 2345 6789', 'pediatria', 'PED-67890', '12 años', '{"monday":{"start":"10:00","end":"18:00","available":true},"tuesday":{"start":"10:00","end":"18:00","available":true},"wednesday":{"start":"10:00","end":"18:00","available":true},"thursday":{"start":"10:00","end":"18:00","available":true},"friday":{"start":"10:00","end":"16:00","available":true},"saturday":{"start":"09:00","end":"13:00","available":true},"sunday":{"start":"","end":"","available":false}}'],
-                ['Dra. María Fernández', 'maria.fernandez@clinicadelux.com', '+52 55 3456 7890', 'ginecologia', 'GIN-11111', '15 años', '{"monday":{"start":"08:00","end":"16:00","available":true},"tuesday":{"start":"08:00","end":"16:00","available":true},"wednesday":{"start":"08:00","end":"16:00","available":true},"thursday":{"start":"08:00","end":"16:00","available":true},"friday":{"start":"08:00","end":"14:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
-                ['Dr. Luis Martínez', 'luis.martinez@clinicadelux.com', '+52 55 4567 8901', 'traumatologia-ortopedia', 'TRA-22222', '10 años', '{"monday":{"start":"07:00","end":"15:00","available":true},"tuesday":{"start":"07:00","end":"15:00","available":true},"wednesday":{"start":"07:00","end":"15:00","available":true},"thursday":{"start":"07:00","end":"15:00","available":true},"friday":{"start":"07:00","end":"13:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}"}']
-            ];
-            
-            $stmt = $pdo->prepare("INSERT IGNORE INTO professionals (name, email, phone, discipline_id, license, experience, schedule) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            foreach ($professionals as $professional) {
-                $stmt->execute($professional);
+            try {
+                $professionals = [
+                    ['Dr. Ana García', 'ana.garcia@clinicadelux.com', '+52 55 1234 5678', 'medicina-general', 'COL-12345', '8 años', '{"monday":{"start":"09:00","end":"17:00","available":true},"tuesday":{"start":"09:00","end":"17:00","available":true},"wednesday":{"start":"09:00","end":"17:00","available":true},"thursday":{"start":"09:00","end":"17:00","available":true},"friday":{"start":"09:00","end":"15:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
+                    ['Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', '+52 55 2345 6789', 'pediatria', 'PED-67890', '12 años', '{"monday":{"start":"10:00","end":"18:00","available":true},"tuesday":{"start":"10:00","end":"18:00","available":true},"wednesday":{"start":"10:00","end":"18:00","available":true},"thursday":{"start":"10:00","end":"18:00","available":true},"friday":{"start":"10:00","end":"16:00","available":true},"saturday":{"start":"09:00","end":"13:00","available":true},"sunday":{"start":"","end":"","available":false}}'],
+                    ['Dra. María Fernández', 'maria.fernandez@clinicadelux.com', '+52 55 3456 7890', 'ginecologia', 'GIN-11111', '15 años', '{"monday":{"start":"08:00","end":"16:00","available":true},"tuesday":{"start":"08:00","end":"16:00","available":true},"wednesday":{"start":"08:00","end":"16:00","available":true},"thursday":{"start":"08:00","end":"16:00","available":true},"friday":{"start":"08:00","end":"14:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
+                    ['Dr. Luis Martínez', 'luis.martinez@clinicadelux.com', '+52 55 4567 8901', 'traumatologia-ortopedia', 'TRA-22222', '10 años', '{"monday":{"start":"07:00","end":"15:00","available":true},"tuesday":{"start":"07:00","end":"15:00","available":true},"wednesday":{"start":"07:00","end":"15:00","available":true},"thursday":{"start":"07:00","end":"15:00","available":true},"friday":{"start":"07:00","end":"13:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}"}']
+                ];
+                
+                $stmt = $pdo->prepare("INSERT IGNORE INTO professionals (name, email, phone, discipline_id, license, experience, schedule) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                foreach ($professionals as $professional) {
+                    $stmt->execute($professional);
+                }
+                $success[] = "✅ Profesionales de ejemplo creados";
+            } catch (PDOException $e) {
+                $errors[] = "Error insertando profesionales: " . $e->getMessage();
             }
-            $success[] = "✅ Profesionales de ejemplo creados";
             
             // Pacientes de ejemplo
-            $patients = [
-                ['Juan Pérez García', 'juan.perez@email.com', '+52 55 1111 2222', 35, 'masculino', 'Av. Insurgentes 123, Col. Roma, CDMX', 'María Pérez', '+52 55 3333 4444', 'Hipertensión controlada', 'Ninguna conocida', 'Losartán 50mg', 'Paciente regular'],
-                ['Ana Martínez López', 'ana.martinez@email.com', '+52 55 5555 6666', 28, 'femenino', 'Calle Reforma 456, Col. Juárez, CDMX', 'Carlos Martínez', '+52 55 7777 8888', 'Ninguna', 'Polen', 'Ninguna', 'Primera consulta'],
-                ['Carlos Rodríguez Sánchez', 'carlos.rodriguez@email.com', '+52 55 9999 0000', 42, 'masculino', 'Av. Universidad 789, Col. Del Valle, CDMX', 'Laura Rodríguez', '+52 55 1234 5678', 'Diabetes tipo 2', 'Penicilina', 'Metformina 850mg', 'Control mensual'],
-                ['María González Hernández', 'maria.gonzalez@email.com', '+52 55 2468 1357', 31, 'femenino', 'Calle Madero 321, Col. Centro, CDMX', 'José González', '+52 55 9876 5432', 'Ninguna', 'Mariscos', 'Vitaminas prenatales', 'Embarazo de 20 semanas'],
-                ['Pedro Jiménez Morales', 'pedro.jimenez@email.com', '+52 55 1357 2468', 55, 'masculino', 'Av. Patriotismo 654, Col. San Pedro, CDMX', 'Carmen Jiménez', '+52 55 5432 1098', 'Artritis reumatoide', 'Aspirina', 'Metotrexato', 'Seguimiento reumatológico']
-            ];
-            
-            $stmt = $pdo->prepare("INSERT IGNORE INTO patients (name, email, phone, age, gender, address, emergency_contact, emergency_phone, medical_history, allergies, medications, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            foreach ($patients as $patient) {
-                $stmt->execute($patient);
+            try {
+                $patients = [
+                    ['Juan Pérez García', 'juan.perez@email.com', '+52 55 1111 2222', 35, 'masculino', 'Av. Insurgentes 123, Col. Roma, CDMX', 'María Pérez', '+52 55 3333 4444', 'Hipertensión controlada', 'Ninguna conocida', 'Losartán 50mg', 'Paciente regular'],
+                    ['Ana Martínez López', 'ana.martinez@email.com', '+52 55 5555 6666', 28, 'femenino', 'Calle Reforma 456, Col. Juárez, CDMX', 'Carlos Martínez', '+52 55 7777 8888', 'Ninguna', 'Polen', 'Ninguna', 'Primera consulta'],
+                    ['Carlos Rodríguez Sánchez', 'carlos.rodriguez@email.com', '+52 55 9999 0000', 42, 'masculino', 'Av. Universidad 789, Col. Del Valle, CDMX', 'Laura Rodríguez', '+52 55 1234 5678', 'Diabetes tipo 2', 'Penicilina', 'Metformina 850mg', 'Control mensual'],
+                    ['María González Hernández', 'maria.gonzalez@email.com', '+52 55 2468 1357', 31, 'femenino', 'Calle Madero 321, Col. Centro, CDMX', 'José González', '+52 55 9876 5432', 'Ninguna', 'Mariscos', 'Vitaminas prenatales', 'Embarazo de 20 semanas'],
+                    ['Pedro Jiménez Morales', 'pedro.jimenez@email.com', '+52 55 1357 2468', 55, 'masculino', 'Av. Patriotismo 654, Col. San Pedro, CDMX', 'Carmen Jiménez', '+52 55 5432 1098', 'Artritis reumatoide', 'Aspirina', 'Metotrexato', 'Seguimiento reumatológico']
+                ];
+                
+                $stmt = $pdo->prepare("INSERT IGNORE INTO patients (name, email, phone, age, gender, address, emergency_contact, emergency_phone, medical_history, allergies, medications, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                foreach ($patients as $patient) {
+                    $stmt->execute($patient);
+                }
+                $success[] = "✅ Pacientes de ejemplo creados";
+            } catch (PDOException $e) {
+                $errors[] = "Error insertando pacientes: " . $e->getMessage();
             }
-            $success[] = "✅ Pacientes de ejemplo creados";
             
             // Actualizar archivo de configuración
             $configContent = "<?php
@@ -385,6 +407,24 @@ function getMexicoNow() {
     \$now = new DateTime();
     \$now->setTimezone(new DateTimeZone('America/Mexico_City'));
     return \$now;
+}
+
+// Función para registrar actividad de la API
+function logApiActivity(\$endpoint, \$method, \$status, \$message = '') {
+    \$logFile = __DIR__ . '/api_log.txt';
+    \$timestamp = date('Y-m-d H:i:s');
+    \$ip = \$_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+    \$userAgent = \$_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+    
+    \$logEntry = \"[\$timestamp] \$ip | \$method \$endpoint | Status: \$status | \$message | \$userAgent\\n\";
+    
+    // Limitar el tamaño del archivo de log
+    if (file_exists(\$logFile) && filesize(\$logFile) > 5 * 1024 * 1024) { // 5MB
+        // Crear archivo de respaldo
+        rename(\$logFile, \$logFile . '.' . date('Ymd-His') . '.bak');
+    }
+    
+    file_put_contents(\$logFile, \$logEntry, FILE_APPEND);
 }
 ?>";
             
@@ -539,6 +579,14 @@ function getMexicoNow() {
                     <div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div>
                 <?php endforeach; ?>
                 
+                <?php if (!empty($errors)): ?>
+                    <h3 style="color: #f59e0b; margin: 20px 0 10px;">Advertencias:</h3>
+                    <?php foreach ($errors as $error): ?>
+                        <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
+                    <?php endforeach; ?>
+                    <p style="margin-top: 10px; color: #6b7280;">Algunas operaciones fallaron, pero el sistema debería funcionar correctamente.</p>
+                <?php endif; ?>
+                
                 <div class="credentials">
                     <h3>🔑 Credenciales de Acceso</h3>
                     <div class="credential-item">
@@ -691,6 +739,3 @@ echo ""
 echo "⚠️  IMPORTANTE: Cambia las contraseñas después del primer login"
 echo ""
 log_success "🚀 ¡Tu sistema de gestión médica está listo para usar!"
-EOF
-
-chmod +x deploy-hosting-compartido.sh

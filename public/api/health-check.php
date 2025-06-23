@@ -18,6 +18,16 @@ $username = $_ENV['DB_USER'] ?? 'root';
 $password = $_ENV['DB_PASSWORD'] ?? '';
 $database = $_ENV['DB_NAME'] ?? 'clinica_delux';
 
+// Función para registrar actividad
+function logActivity($message, $status = 'info') {
+    $logFile = __DIR__ . '/api_log.txt';
+    $timestamp = date('Y-m-d H:i:s');
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+    
+    $logEntry = "[$timestamp] [$status] $ip | Health Check: $message\n";
+    file_put_contents($logFile, $logEntry, FILE_APPEND);
+}
+
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -42,7 +52,7 @@ try {
     $mexicoTime = new DateTime();
     $mexicoTime->setTimezone(new DateTimeZone('America/Mexico_City'));
     
-    echo json_encode([
+    $response = [
         'status' => 'ok',
         'database' => 'connected',
         'clinic' => 'Clínica Delux',
@@ -52,9 +62,15 @@ try {
         'tables' => $existingTables,
         'mysql_timezone' => $pdo->query("SELECT @@session.time_zone as tz")->fetch()['tz'],
         'api_version' => '1.0.0'
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+    
+    logActivity("Health check successful - DB Connected - " . count($existingTables) . " tables found", "success");
+    
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     
 } catch (PDOException $e) {
+    logActivity("Database connection failed: " . $e->getMessage(), "error");
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
