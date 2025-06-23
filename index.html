@@ -2,7 +2,7 @@
 <html lang="es">
 	<head>
 		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+		<link rel="icon" type="image/svg+xml" href="./vite.svg" />
 		<meta name="generator" content="Clínica Delux" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		
@@ -15,12 +15,12 @@
 		<meta name="application-name" content="Clínica Delux" />
 		
 		<!-- Apple Touch Icons -->
-		<link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
-		<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-		<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+		<link rel="apple-touch-icon" href="./icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192x192.png" />
 		
 		<!-- Manifest -->
-		<link rel="manifest" href="/manifest.json" />
+		<link rel="manifest" href="./manifest.json" />
 		
 		<!-- SEO Meta Tags -->
 		<title>Clínica Delux - Sistema de Gestión Médica</title>
@@ -36,7 +36,7 @@
 		<meta property="og:title" content="Clínica Delux - Sistema de Gestión Médica" />
 		<meta property="og:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
 		<meta property="og:type" content="website" />
-		<meta property="og:image" content="/icons/icon-512x512.png" />
+		<meta property="og:image" content="./icons/icon-512x512.png" />
 		<meta property="og:locale" content="es_MX" />
 		<meta property="og:site_name" content="Clínica Delux" />
 		
@@ -44,17 +44,11 @@
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content="Clínica Delux - Sistema de Gestión Médica" />
 		<meta name="twitter:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
-		<meta name="twitter:image" content="/icons/icon-512x512.png" />
+		<meta name="twitter:image" content="./icons/icon-512x512.png" />
 		
 		<!-- Preload critical resources -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		
-		<!-- Security Headers -->
-		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
-		<meta http-equiv="X-Frame-Options" content="DENY" />
-		<meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:;" />
 		
 		<!-- Timezone and Locale Configuration -->
 		<meta name="timezone" content="America/Mexico_City" />
@@ -256,7 +250,7 @@
 		</div>
 		
 		<div id="root"></div>
-		<script type="module" src="/src/main.jsx"></script>
+		<script type="module" src="./src/main.jsx"></script>
 		
 		<!-- PWA Installation and Service Worker Script -->
 		<script>
@@ -285,7 +279,7 @@
 			// Registrar Service Worker
 			if ('serviceWorker' in navigator) {
 				window.addEventListener('load', () => {
-					navigator.serviceWorker.register('/sw.js')
+					navigator.serviceWorker.register('./sw.js')
 						.then(registration => {
 							console.log('Service Worker registrado exitosamente:', registration);
 							
@@ -347,6 +341,48 @@
 					}, 0);
 				});
 			}
+			
+			// Configuración de fetch para APIs relativas
+			const originalFetch = window.fetch;
+			window.fetch = function(...args) {
+				const url = args[0] instanceof Request ? args[0].url : args[0];
+				
+				// Skip WebSocket URLs
+				if (url.startsWith('ws:') || url.startsWith('wss:')) {
+					return originalFetch.apply(this, args);
+				}
+				
+				// Ajustar URLs de API para hosting compartido
+				if (typeof url === 'string' && url.startsWith('/api/')) {
+					args[0] = url.replace('/api/', './api/');
+				}
+				
+				return originalFetch.apply(this, args)
+					.then(async response => {
+						const contentType = response.headers.get('Content-Type') || '';
+						
+						// Exclude HTML document responses
+						const isDocumentResponse =
+							contentType.includes('text/html') ||
+							contentType.includes('application/xhtml+xml');
+						
+						if (!response.ok && !isDocumentResponse) {
+							const responseClone = response.clone();
+							const errorFromRes = await responseClone.text();
+							const requestUrl = response.url;
+							console.error(`Fetch error from ${requestUrl}: ${errorFromRes}`);
+						}
+						
+						return response;
+					})
+					.catch(error => {
+						if (!url.match(/\.html?$/i)) {
+							console.error(error);
+						}
+						
+						throw error;
+					});
+			};
 		</script>
 		
 		<!-- Configuración adicional para Apache -->

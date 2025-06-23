@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Users, Home, UserPlus, CalendarDays, Mail, LogOut, Menu, X, Settings, ShieldCheck, Briefcase, FileText, Activity, DollarSign, BarChart3, Stethoscope } from 'lucide-react';
+import { Calendar, Users, Home, UserPlus, CalendarDays, Mail, LogOut, Menu, X, Settings, ShieldCheck, Briefcase, FileText, Activity, DollarSign, BarChart3, Stethoscope, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/components/ui/use-toast';
@@ -16,6 +16,7 @@ import DisciplineManager from '@/components/DisciplineManager';
 import ReportManager from '@/components/ReportManager';
 import FinanceManager from '@/components/FinanceManager';
 import ProfessionalPortal from '@/components/ProfessionalPortal';
+import ApiLogsViewer from '@/components/ApiLogsViewer';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAUpdateNotification from '@/components/PWAUpdateNotification';
 import OfflineIndicator from '@/components/OfflineIndicator';
@@ -99,6 +100,7 @@ function App() {
     { id: 'finances', label: 'Ingresos/Egresos', icon: BarChart3, roles: [ROLES.ADMIN, ROLES.MANAGER] },
     { id: 'emails', label: 'Notificaciones', icon: Mail, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
     { id: 'reports', label: 'Reportes', icon: FileText, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
+    { id: 'api-logs', label: 'Logs de API', icon: Bug, roles: [ROLES.ADMIN, ROLES.MANAGER] },
     { id: 'settings', label: 'Configuración', icon: Settings, roles: [ROLES.ADMIN, ROLES.MANAGER] },
   ];
 
@@ -223,6 +225,8 @@ function App() {
         return <EmailManager />;
       case 'reports':
         return <ReportManager />;
+      case 'api-logs':
+        return <ApiLogsViewer />;
       case 'settings':
         return <SettingsManager />;
       default:
