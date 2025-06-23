@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<link rel="icon" type="image/svg+xml" href="./vite.svg" />
+		<meta name="generator" content="Clínica Delux" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		
+		<!-- PWA Meta Tags -->
+		<meta name="theme-color" content="#d946ef" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="apple-mobile-web-app-title" content="Clínica Delux" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="application-name" content="Clínica Delux" />
+		
+		<!-- Apple Touch Icons -->
+		<link rel="apple-touch-icon" href="./icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192x192.png" />
+		
+		<!-- Manifest -->
+		<link rel="manifest" href="./manifest.json" />
+		
+		<!-- SEO Meta Tags -->
+		<title>Clínica Delux - Sistema de Gestión Médica</title>
+		<meta name="description" content="Sistema de gestión interno para Clínica Delux - Administración de citas, profesionales y pacientes en Ciudad de México, México" />
+		<meta name="keywords" content="clínica, gestión, citas médicas, pacientes, profesionales, sistema médico, Ciudad de México, México, CDMX" />
+		<meta name="author" content="Clínica Delux" />
+		<meta name="geo.region" content="MX-CMX" />
+		<meta name="geo.placename" content="Ciudad de México" />
+		<meta name="geo.position" content="19.4326;-99.1332" />
+		<meta name="ICBM" content="19.4326, -99.1332" />
+		
+		<!-- Open Graph Meta Tags -->
+		<meta property="og:title" content="Clínica Delux - Sistema de Gestión Médica" />
+		<meta property="og:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="./icons/icon-512x512.png" />
+		<meta property="og:locale" content="es_MX" />
+		<meta property="og:site_name" content="Clínica Delux" />
+		
+		<!-- Twitter Card Meta Tags -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Clínica Delux - Sistema de Gestión Médica" />
+		<meta name="twitter:description" content="Sistema de gestión interno para clínica médica en Ciudad de México, México" />
+		<meta name="twitter:image" content="./icons/icon-512x512.png" />
+		
+		<!-- Preload critical resources -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		
+		<!-- Timezone and Locale Configuration -->
+		<meta name="timezone" content="America/Mexico_City" />
+		<meta name="locale" content="es-MX" />
+		<meta name="currency" content="MXN" />
+		
+		<!-- Splash Screen Styles for iOS -->
+		<style>
+			/* iOS Splash Screen */
+			@media (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) {
+				.splash-screen {
+					background: linear-gradient(135deg, #d946ef, #a855f7);
+					position: fixed;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					z-index: 9999;
+				}
+			}
+			
+			/* Loading Screen */
+			.loading-screen {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(135deg, #d946ef, #a855f7);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				z-index: 9998;
+				color: white;
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			}
+			
+			.loading-logo {
+				width: 80px;
+				height: 80px;
+				background: white;
+				border-radius: 20px;
+				margin-bottom: 20px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				animation: pulse 2s infinite;
+			}
+			
+			.loading-cross {
+				width: 40px;
+				height: 40px;
+				position: relative;
+			}
+			
+			.loading-cross::before,
+			.loading-cross::after {
+				content: '';
+				position: absolute;
+				background: #d946ef;
+				border-radius: 2px;
+			}
+			
+			.loading-cross::before {
+				width: 6px;
+				height: 40px;
+				left: 17px;
+				top: 0;
+			}
+			
+			.loading-cross::after {
+				width: 40px;
+				height: 6px;
+				left: 0;
+				top: 17px;
+			}
+			
+			@keyframes pulse {
+				0%, 100% { transform: scale(1); }
+				50% { transform: scale(1.05); }
+			}
+			
+			.loading-text {
+				font-size: 24px;
+				font-weight: 600;
+				margin-bottom: 8px;
+			}
+			
+			.loading-subtitle {
+				font-size: 16px;
+				opacity: 0.9;
+				margin-bottom: 4px;
+			}
+			
+			.loading-location {
+				font-size: 14px;
+				opacity: 0.8;
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+			
+			.mexico-flag {
+				font-size: 16px;
+			}
+		</style>
+		
+		<!-- Timezone Detection and Configuration -->
+		<script>
+			// Configurar zona horaria de México al cargar la página
+			(function() {
+				// Detectar si el navegador soporta Intl
+				if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+					// Forzar zona horaria de Ciudad de México
+					window.CLINIC_TIMEZONE = 'America/Mexico_City';
+					window.CLINIC_LOCALE = 'es-MX';
+					window.CLINIC_CURRENCY = 'MXN';
+					
+					// Función global para formatear fechas en zona horaria de México
+					window.formatMexicoDate = function(date, options = {}) {
+						const defaultOptions = {
+							timeZone: 'America/Mexico_City',
+							locale: 'es-MX',
+							...options
+						};
+						
+						if (typeof date === 'string') {
+							date = new Date(date);
+						}
+						
+						return date.toLocaleDateString('es-MX', defaultOptions);
+					};
+					
+					// Función global para formatear fecha y hora en zona horaria de México
+					window.formatMexicoDateTime = function(date, options = {}) {
+						const defaultOptions = {
+							timeZone: 'America/Mexico_City',
+							locale: 'es-MX',
+							year: 'numeric',
+							month: 'long',
+							day: 'numeric',
+							hour: '2-digit',
+							minute: '2-digit',
+							...options
+						};
+						
+						if (typeof date === 'string') {
+							date = new Date(date);
+						}
+						
+						return date.toLocaleDateString('es-MX', defaultOptions);
+					};
+					
+					// Función para obtener la fecha actual en México
+					window.getMexicoToday = function() {
+						const now = new Date();
+						const mexicoTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+						return mexicoTime.toISOString().split('T')[0];
+					};
+					
+					// Configurar localStorage con información de la clínica
+					localStorage.setItem('clinic_timezone', 'America/Mexico_City');
+					localStorage.setItem('clinic_locale', 'es-MX');
+					localStorage.setItem('clinic_currency', 'MXN');
+					localStorage.setItem('clinic_country', 'México');
+					localStorage.setItem('clinic_city', 'Ciudad de México');
+				}
+			})();
+		</script>
+		<script type="module" crossorigin src="./assets/index-6517f619.js"></script>
+		<link rel="stylesheet" href="./assets/index-65f12573.css">
+		<script type="module">
+window.onerror = (message, source, lineno, colno, errorObj) => {
+	const errorDetails = errorObj ? JSON.stringify({
+		name: errorObj.name,
+		message: errorObj.message,
+		stack: errorObj.stack,
+		source,
+		lineno,
+		colno,
+	}) : null;
+
+	window.parent.postMessage({
+		type: 'horizons-runtime-error',
+		message,
+		error: errorDetails
+	}, '*');
+};
+</script>
+		<script type="module">
+const observer = new MutationObserver((mutations) => {
+	for (const mutation of mutations) {
+		for (const addedNode of mutation.addedNodes) {
+			if (
+				addedNode.nodeType === Node.ELEMENT_NODE &&
+				(
+					addedNode.tagName?.toLowerCase() === 'vite-error-overlay' ||
+					addedNode.classList?.contains('backdrop')
+				)
+			) {
+				handleViteOverlay(addedNode);
+			}
+		}
+	}
+});
+
+observer.observe(document.documentElement, {
+	childList: true,
+	subtree: true
+});
+
+function handleViteOverlay(node) {
+	if (!node.shadowRoot) {
+		return;
+	}
+
+	const backdrop = node.shadowRoot.querySelector('.backdrop');
+
+	if (backdrop) {
+		const overlayHtml = backdrop.outerHTML;
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(overlayHtml, 'text/html');
+		const messageBodyElement = doc.querySelector('.message-body');
+		const fileElement = doc.querySelector('.file');
+		const messageText = messageBodyElement ? messageBodyElement.textContent.trim() : '';
+		const fileText = fileElement ? fileElement.textContent.trim() : '';
+		const error = messageText + (fileText ? ' File:' + fileText : '');
+
+		window.parent.postMessage({
+			type: 'horizons-vite-error',
+			error,
+		}, '*');
+	}
+}
+</script>
+		<script type="module">
+const originalConsoleError = console.error;
+console.error = function(...args) {
+	originalConsoleError.apply(console, args);
+
+	let errorString = '';
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg instanceof Error) {
+			errorString = arg.stack || `${arg.name}: ${arg.message}`;
+			break;
+		}
+	}
+
+	if (!errorString) {
+		errorString = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+	}
+
+	window.parent.postMessage({
+		type: 'horizons-console-error',
+		error: errorString
+	}, '*');
+};
+</script>
+		<script type="module">
+const originalFetch = window.fetch;
+
+window.fetch = function(...args) {
+	const url = args[0] instanceof Request ? args[0].url : args[0];
+
+	// Skip WebSocket URLs
+	if (url.startsWith('ws:') || url.startsWith('wss:')) {
+		return originalFetch.apply(this, args);
+	}
+
+	return originalFetch.apply(this, args)
+		.then(async response => {
+			const contentType = response.headers.get('Content-Type') || '';
+
+			// Exclude HTML document responses
+			const isDocumentResponse =
+				contentType.includes('text/html') ||
+				contentType.includes('application/xhtml+xml');
+
+			if (!response.ok && !isDocumentResponse) {
+					const responseClone = response.clone();
+					const errorFromRes = await responseClone.text();
+					const requestUrl = response.url;
+					console.error(`Fetch error from ${requestUrl}: ${errorFromRes}`);
+			}
+
+			return response;
+		})
+		.catch(error => {
+			if (!url.match(/.html?$/i)) {
+				console.error(error);
+			}
+
+			throw error;
+		});
+};
+</script>
+	</head>
+	<body>
+		<!-- Loading Screen -->
+		<div id="loading-screen" class="loading-screen">
+			<div class="loading-logo">
+				<div class="loading-cross"></div>
+			</div>
+			<div class="loading-text">Clínica Delux</div>
+			<div class="loading-subtitle">Sistema de Gestión Médica</div>
+			<div class="loading-location">
+				<span class="mexico-flag">🇲🇽</span>
+				<span>Ciudad de México, México</span>
+			</div>
+		</div>
+		
+		<!-- iOS Splash Screen -->
+		<div id="splash-screen" class="splash-screen" style="display: none;">
+			<div style="text-align: center; color: white;">
+				<div class="loading-logo">
+					<div class="loading-cross"></div>
+				</div>
+				<h1 style="font-size: 24px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Clínica Delux</h1>
+				<p style="font-size: 16px; margin: 8px 0 0; opacity: 0.8; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Sistema de Gestión Médica</p>
+				<p style="font-size: 14px; margin: 4px 0 0; opacity: 0.7; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">🇲🇽 Ciudad de México</p>
+			</div>
+		</div>
+		
+		<div id="root"></div>
+		
+		
+		<!-- PWA Installation and Service Worker Script -->
+		<script>
+			// Ocultar loading screen cuando la app esté lista
+			window.addEventListener('load', () => {
+				setTimeout(() => {
+					const loadingScreen = document.getElementById('loading-screen');
+					if (loadingScreen) {
+						loadingScreen.style.opacity = '0';
+						loadingScreen.style.transition = 'opacity 0.5s ease-out';
+						setTimeout(() => {
+							loadingScreen.style.display = 'none';
+						}, 500);
+					}
+				}, 1000);
+			});
+			
+			// Mostrar splash screen en iOS si es PWA
+			if (window.navigator.standalone) {
+				document.getElementById('splash-screen').style.display = 'flex';
+				setTimeout(() => {
+					document.getElementById('splash-screen').style.display = 'none';
+				}, 2500);
+			}
+			
+			// Registrar Service Worker
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', () => {
+					navigator.serviceWorker.register('./sw.js')
+						.then(registration => {
+							console.log('Service Worker registrado exitosamente:', registration);
+							
+							// Verificar actualizaciones
+							registration.addEventListener('updatefound', () => {
+								const newWorker = registration.installing;
+								newWorker.addEventListener('statechange', () => {
+									if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+										// Nueva versión disponible
+										console.log('Nueva versión de la aplicación disponible');
+									}
+								});
+							});
+						})
+						.catch(registrationError => {
+							console.log('Error al registrar Service Worker:', registrationError);
+						});
+				});
+			}
+			
+			// Configuración de zona horaria y localización
+			document.addEventListener('DOMContentLoaded', function() {
+				// Configurar meta tags dinámicamente
+				const now = new Date();
+				const mexicoTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+				
+				// Agregar información de tiempo de carga
+				const loadTime = document.createElement('meta');
+				loadTime.name = 'load-time';
+				loadTime.content = mexicoTime.toISOString();
+				document.head.appendChild(loadTime);
+				
+				// Configurar título dinámico con hora
+				const hour = mexicoTime.getHours();
+				let greeting = '';
+				if (hour >= 6 && hour < 12) greeting = 'Buenos días';
+				else if (hour >= 12 && hour < 18) greeting = 'Buenas tardes';
+				else greeting = 'Buenas noches';
+				
+				// Actualizar título de la página
+				document.title = `Clínica Delux - ${greeting} - Sistema de Gestión`;
+			});
+			
+			// Manejo de errores globales
+			window.addEventListener('error', function(e) {
+				console.error('Error global capturado:', e.error);
+			});
+			
+			window.addEventListener('unhandledrejection', function(e) {
+				console.error('Promise rechazada no manejada:', e.reason);
+			});
+			
+			// Configuración de rendimiento
+			if ('performance' in window) {
+				window.addEventListener('load', () => {
+					setTimeout(() => {
+						const perfData = performance.getEntriesByType('navigation')[0];
+						console.log('Tiempo de carga de la página:', perfData.loadEventEnd - perfData.fetchStart, 'ms');
+					}, 0);
+				});
+			}
+			
+			// Configuración de fetch para APIs relativas
+			const originalFetch = window.fetch;
+			window.fetch = function(...args) {
+				const url = args[0] instanceof Request ? args[0].url : args[0];
+				
+				// Skip WebSocket URLs
+				if (url.startsWith('ws:') || url.startsWith('wss:')) {
+					return originalFetch.apply(this, args);
+				}
+				
+				// Ajustar URLs de API para hosting compartido
+				if (typeof url === 'string' && url.startsWith('/api/')) {
+					args[0] = url.replace('/api/', './api/');
+				}
+				
+				return originalFetch.apply(this, args)
+					.then(async response => {
+						const contentType = response.headers.get('Content-Type') || '';
+						
+						// Exclude HTML document responses
+						const isDocumentResponse =
+							contentType.includes('text/html') ||
+							contentType.includes('application/xhtml+xml');
+						
+						if (!response.ok && !isDocumentResponse) {
+							const responseClone = response.clone();
+							const errorFromRes = await responseClone.text();
+							const requestUrl = response.url;
+							console.error(`Fetch error from ${requestUrl}: ${errorFromRes}`);
+						}
+						
+						return response;
+					})
+					.catch(error => {
+						if (!url.match(/\.html?$/i)) {
+							console.error(error);
+						}
+						
+						throw error;
+					});
+			};
+		</script>
+		
+		<!-- Configuración adicional para Apache -->
+		<script>
+			// Detectar si estamos en un entorno Apache
+			if (typeof window !== 'undefined') {
+				// Configurar rutas base para Apache
+				window.APACHE_BASE_PATH = window.location.pathname.replace(/\/[^\/]*$/, '') || '/';
+				
+				// Función para construir URLs relativas a Apache
+				window.buildApacheURL = function(path) {
+					const basePath = window.APACHE_BASE_PATH;
+					const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+					return basePath + (basePath.endsWith('/') ? '' : '/') + cleanPath;
+				};
+			}
+		</script>
+	</body>
+</html>

@@ -1,0 +1,39 @@
+=====================================================
+INSTRUCCIONES DE DEPLOY - CLÍNICA DELUX
+=====================================================
+
+🎯 PASOS PARA SUBIR AL HOSTING COMPARTIDO:
+
+1. SUBIR ARCHIVOS:
+   - Sube TODO el contenido de esta carpeta a tu public_html (o html)
+   - Asegúrate de que index.html esté en la raíz de tu dominio
+
+2. CONFIGURAR BASE DE DATOS:
+   - Ve a: http://tu-dominio.com/setup-database.php
+   - Ingresa las credenciales de tu base de datos MySQL
+   - El sistema se configurará automáticamente
+
+3. ELIMINAR ARCHIVO DE CONFIGURACIÓN:
+   - Después de la configuración, ELIMINA setup-database.php por seguridad
+
+4. ACCEDER AL SISTEMA:
+   - Ve a: http://tu-dominio.com
+   - Usa las credenciales que aparecen en el configurador
+
+🔑 CREDENCIALES DE PRUEBA:
+   - admin / password (Administrador)
+   - gerente / password (Gerente)  
+   - profesional1 / password (Profesional)
+   - recepcion / password (Recepcionista)
+
+⚠️ IMPORTANTE:
+   - Cambia las contraseñas después del primer login
+   - Configura el envío de emails en Configuración
+   - El sistema está optimizado para México (GMT-6)
+
+📞 SOPORTE:
+   - Todos los logs de API se guardan automáticamente
+   - Revisa la sección "Logs de API" para diagnósticos
+   - El sistema funciona offline con localStorage como respaldo
+
+🎉 ¡LISTO! Tu sistema de gestión médica está configurado.
