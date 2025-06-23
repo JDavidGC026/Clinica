@@ -17,6 +17,9 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Saltarse la fase de espera
+  self.skipWaiting();
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -30,45 +33,25 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // No interceptar peticiones a la API
+  // No usar cache para las peticiones API
   if (event.request.url.includes('/api/')) {
     return;
   }
   
+  // Para otros recursos, intentar red primero, luego cache
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        
-        // Clonar la solicitud porque es de un solo uso
-        const fetchRequest = event.request.clone();
-        
-        return fetch(fetchRequest).then(
-          (response) => {
-            // Verificar si recibimos una respuesta válida
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            
-            // Clonar la respuesta porque es de un solo uso
-            const responseToCache = response.clone();
-            
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-              
-            return response;
-          }
-        );
+    fetch(event.request)
+      .catch(() => {
+        return caches.match(event.request);
       })
-    );
+  );
 });
 
 self.addEventListener('activate', (event) => {
+  // Reclamar clientes para que el nuevo service worker tome efecto inmediatamente
+  event.waitUntil(clients.claim());
+  
+  // Limpiar caches antiguas
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {

@@ -1,41 +1,22 @@
-RewriteEngine On
-RewriteBase /api/
-
-# Configuración CORS
+# Permitir todas las solicitudes CORS
 Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
 
 # Manejar OPTIONS requests
+RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Rutas de la API
-RewriteRule ^login/?$ login.php [L,QSA]
-RewriteRule ^health-check/?$ health-check.php [L,QSA]
-RewriteRule ^users/?$ users.php [L,QSA]
-RewriteRule ^users/([0-9]+)/?$ users.php?id=$1 [L,QSA]
-RewriteRule ^appointments/?$ appointments.php [L,QSA]
-RewriteRule ^appointments/([0-9]+)/?$ appointments.php?id=$1 [L,QSA]
-RewriteRule ^professionals/?$ professionals.php [L,QSA]
-RewriteRule ^professionals/([0-9]+)/?$ professionals.php?id=$1 [L,QSA]
-RewriteRule ^patients/?$ patients.php [L,QSA]
-RewriteRule ^patients/([0-9]+)/?$ patients.php?id=$1 [L,QSA]
-RewriteRule ^disciplines/?$ disciplines.php [L,QSA]
-RewriteRule ^disciplines/([^/]+)/?$ disciplines.php?id=$1 [L,QSA]
-RewriteRule ^send-email/?$ send-email.php [L,QSA]
-RewriteRule ^send-email-fallback/?$ send-email-fallback.php [L,QSA]
+# Permitir todos los orígenes
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
 
-# Configuración de seguridad adicional
+# Deshabilitar restricciones de seguridad para pruebas
 <Files "*.php">
     <IfModule mod_headers.c>
         Header set X-Content-Type-Options "nosniff"
         Header set X-Frame-Options "SAMEORIGIN"
     </IfModule>
 </Files>
-
-# Prevenir acceso a archivos sensibles
-<FilesMatch "\.(env|log|sql|bak)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>

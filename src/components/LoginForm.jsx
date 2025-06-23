@@ -4,95 +4,16 @@ import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
-const LoginForm = ({ onLogin }) => {
+const LoginForm = ({ onLogin, isLoading }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // Intentar login con base de datos primero
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        // Login exitoso con base de datos
-        onLogin(result.user);
-        toast({
-          title: "¡Bienvenido!",
-          description: `Hola ${result.user.name}, has iniciado sesión correctamente.`,
-        });
-      } else {
-        // Si falla la base de datos, usar usuarios locales como fallback
-        const validUsers = [
-          { username: 'admin', password: 'admin123', name: 'Admin General', role: 'Administrador', id: 1 },
-          { username: 'gerente', password: 'gerente123', name: 'Gerente Principal', role: 'Gerente', id: 2 },
-          { username: 'profesional1', password: 'prof123', name: 'Dr. Carlos Ruiz', role: 'Profesional', id: 3 },
-          { username: 'recepcion', password: 'rec123', name: 'María López', role: 'Recepcionista', id: 4 }
-        ];
-
-        const user = validUsers.find(
-          u => u.username === formData.username && u.password === formData.password
-        );
-
-        if (user) {
-          onLogin(user);
-          toast({
-            title: "¡Bienvenido!",
-            description: `Hola ${user.name}, has iniciado sesión correctamente (modo local).`,
-          });
-        } else {
-          toast({
-            title: "Error de autenticación",
-            description: result.error || "Usuario o contraseña incorrectos.",
-            variant: "destructive"
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error de conexión:', error);
-      
-      // Fallback a usuarios locales si hay error de conexión
-      const validUsers = [
-        { username: 'admin', password: 'admin123', name: 'Admin General', role: 'Administrador', id: 1 },
-        { username: 'gerente', password: 'gerente123', name: 'Gerente Principal', role: 'Gerente', id: 2 },
-        { username: 'profesional1', password: 'prof123', name: 'Dr. Carlos Ruiz', role: 'Profesional', id: 3 },
-        { username: 'recepcion', password: 'rec123', name: 'María López', role: 'Recepcionista', id: 4 }
-      ];
-
-      const user = validUsers.find(
-        u => u.username === formData.username && u.password === formData.password
-      );
-
-      if (user) {
-        onLogin(user);
-        toast({
-          title: "¡Bienvenido!",
-          description: `Hola ${user.name}, has iniciado sesión correctamente (modo offline).`,
-        });
-      } else {
-        toast({
-          title: "Error de conexión",
-          description: "No se pudo conectar al servidor. Verifica tu conexión.",
-          variant: "destructive"
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    onLogin(formData);
   };
 
   const handleChange = (e) => {
@@ -178,13 +99,11 @@ const LoginForm = ({ onLogin }) => {
         <div className="mt-6 p-4 bg-white/5 rounded-lg">
           <p className="text-xs text-purple-200 mb-2">Usuarios de prueba:</p>
           <div className="text-xs text-purple-300 space-y-1">
-            <div><strong>Base de datos:</strong> admin / password (Administrador)</div>
-            <div>gerente / password (Gerente)</div>
-            <div>profesional1 / password (Profesional)</div>
-            <div>recepcion / password (Recepcionista)</div>
+            <div><strong>Usuario:</strong> admin</div>
+            <div><strong>Contraseña:</strong> password</div>
             <hr className="my-2 border-purple-400/30" />
-            <div><strong>Fallback local:</strong> admin / admin123</div>
-            <div>gerente / gerente123, etc.</div>
+            <div>También disponibles: gerente, profesional1, recepcion</div>
+            <div>Todos con contraseña: password</div>
           </div>
         </div>
       </div>

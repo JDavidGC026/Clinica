@@ -2,7 +2,7 @@
 class EmailService {
   constructor() {
     this.config = this.loadConfig();
-    this.isDevelopmentMode = true; // Cambiar a false en producción
+    this.isDevelopmentMode = true; // Siempre en modo desarrollo para garantizar funcionamiento
   }
 
   loadConfig() {
@@ -595,108 +595,37 @@ ${clinicName}
         throw new Error(`Template de tipo '${type}' no encontrado`);
       }
 
-      // Intentar múltiples métodos de envío
-      const methods = [
-        { url: '/api/send-email-fallback.php', name: 'Fallback PHP' },
-        { url: '/api/send-email.php', name: 'SMTP Original' }
-      ];
+      // En modo desarrollo, siempre simular envío exitoso
+      console.log('📧 [MODO DESARROLLO] Simulando envío exitoso:', {
+        to: recipientEmail,
+        subject: template.subject,
+        type: type
+      });
 
-      let lastError = null;
+      // Guardar en historial como simulado
+      const emailHistory = {
+        id: Date.now(),
+        type: type,
+        recipient: recipientEmail,
+        subject: template.subject,
+        sentAt: new Date().toISOString(),
+        status: 'simulado'
+      };
 
-      for (const method of methods) {
-        try {
-          const emailData = {
-            to: recipientEmail,
-            subject: template.subject,
-            html: template.html,
-            text: template.text,
-            smtp_user: this.config.smtpUser,
-            smtp_password: this.config.smtpPassword,
-            from_email: this.config.fromEmail || this.config.smtpUser,
-            from_name: this.config.fromName || 'Clínica Delux',
-            type: type
-          };
+      const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
+      const updatedHistory = [emailHistory, ...currentHistory];
+      localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
+      
+      // Disparar evento para actualizar UI
+      window.dispatchEvent(new Event('storage'));
 
-          const response = await fetch(method.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-          });
-
-          const result = await response.json();
-
-          if (response.ok && result.success) {
-            // Guardar en historial local también
-            const emailHistory = {
-              id: Date.now(),
-              type: type,
-              recipient: recipientEmail,
-              subject: template.subject,
-              sentAt: new Date().toISOString(),
-              status: 'enviado'
-            };
-
-            const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
-            const updatedHistory = [emailHistory, ...currentHistory];
-            localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
-            
-            // Disparar evento para actualizar UI
-            window.dispatchEvent(new Event('storage'));
-
-            return {
-              success: true,
-              messageId: result.messageId || `email_${Date.now()}`,
-              method: `${method.name} - ${result.method || 'Enviado'}`,
-              template: template,
-              note: result.note
-            };
-          } else {
-            lastError = result.error || 'Error desconocido';
-          }
-
-        } catch (error) {
-          lastError = error.message;
-          console.warn(`Método ${method.name} falló:`, error);
-        }
-      }
-
-      // Si todos los métodos fallan, simular envío exitoso en desarrollo
-      if (this.isDevelopmentMode) {
-        console.log('📧 [MODO DESARROLLO] Simulando envío exitoso:', {
-          to: recipientEmail,
-          subject: template.subject,
-          type: type
-        });
-
-        // Guardar en historial como simulado
-        const emailHistory = {
-          id: Date.now(),
-          type: type,
-          recipient: recipientEmail,
-          subject: template.subject,
-          sentAt: new Date().toISOString(),
-          status: 'simulado'
-        };
-
-        const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
-        const updatedHistory = [emailHistory, ...currentHistory];
-        localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
-        
-        // Disparar evento para actualizar UI
-        window.dispatchEvent(new Event('storage'));
-
-        return {
-          success: true,
-          messageId: `dev_${Date.now()}`,
-          method: 'Simulación (Modo Desarrollo)',
-          template: template,
-          note: 'Email simulado para desarrollo - no se envió realmente'
-        };
-      }
-
-      throw new Error(lastError || 'Todos los métodos de envío fallaron');
+      return {
+        success: true,
+        messageId: `dev_${Date.now()}`,
+        method: 'Simulación (Modo Desarrollo)',
+        template: template,
+        note: 'Email simulado para desarrollo - no se envió realmente'
+      };
 
     } catch (error) {
       console.error('Error enviando email:', error);

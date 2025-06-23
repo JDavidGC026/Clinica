@@ -20,6 +20,7 @@ import ApiLogsViewer from '@/components/ApiLogsViewer';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAUpdateNotification from '@/components/PWAUpdateNotification';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import apiService from '@/services/ApiService';
 
 const ROLES = {
   ADMIN: 'Administrador',
@@ -35,6 +36,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('clinic_auth');
@@ -63,18 +65,205 @@ function App() {
     } else if (view && savedAuth === 'true') {
       setCurrentView(view);
     }
+    
+    // Inicializar datos de ejemplo si no existen
+    initializeExampleData();
   }, []);
 
-  const handleLogin = (userData) => {
-    setIsAuthenticated(true);
-    setCurrentUser(userData);
-    localStorage.setItem('clinic_auth', 'true');
-    localStorage.setItem('clinic_user', JSON.stringify(userData));
-    setCurrentView('dashboard');
-    toast({
-      title: "¡Bienvenido!",
-      description: `Hola ${userData.name}, has iniciado sesión correctamente.`,
-    });
+  const initializeExampleData = () => {
+    // Disciplinas
+    if (!localStorage.getItem('clinic_disciplines')) {
+      const initialDisciplines = [
+        { id: 'medicina-general', name: 'Medicina General' },
+        { id: 'pediatria', name: 'Pediatría' },
+        { id: 'ginecologia', name: 'Ginecología' },
+        { id: 'traumatologia-ortopedia', name: 'Traumatología y Ortopedia' },
+        { id: 'urologia', name: 'Urología' },
+        { id: 'medicina-interna', name: 'Medicina Interna' },
+        { id: 'gastroenterologia', name: 'Gastroenterología' },
+        { id: 'nutricion', name: 'Nutrición' },
+        { id: 'dermatologia', name: 'Dermatología' },
+        { id: 'psicologia-clinica', name: 'Psicología Clínica' },
+      ];
+      localStorage.setItem('clinic_disciplines', JSON.stringify(initialDisciplines));
+    }
+    
+    // Profesionales
+    if (!localStorage.getItem('clinic_professionals')) {
+      const initialProfessionals = [
+        {
+          id: 1, name: 'Dr. Ana García', email: 'ana.garcia@clinicadelux.com', phone: '+52 55 1234 5678', disciplineId: 'medicina-general', license: 'COL-12345', experience: '8 años',
+          schedule: { monday: { start: '09:00', end: '17:00', available: true }, tuesday: { start: '09:00', end: '17:00', available: true }, wednesday: { start: '09:00', end: '17:00', available: true }, thursday: { start: '09:00', end: '17:00', available: true }, friday: { start: '09:00', end: '15:00', available: true }, saturday: { start: '', end: '', available: false }, sunday: { start: '', end: '', available: false } },
+          status: 'activo'
+        },
+        {
+          id: 2, name: 'Dr. Carlos Ruiz', email: 'carlos.ruiz@clinicadelux.com', phone: '+52 55 2345 6789', disciplineId: 'pediatria', license: 'PED-67890', experience: '12 años',
+          schedule: { monday: { start: '10:00', end: '18:00', available: true }, tuesday: { start: '10:00', end: '18:00', available: true }, wednesday: { start: '10:00', end: '18:00', available: true }, thursday: { start: '10:00', end: '18:00', available: true }, friday: { start: '10:00', end: '16:00', available: true }, saturday: { start: '09:00', end: '13:00', available: true }, sunday: { start: '', end: '', available: false } },
+          status: 'activo'
+        },
+        {
+          id: 3, name: 'Dra. María Fernández', email: 'maria.fernandez@clinicadelux.com', phone: '+52 55 3456 7890', disciplineId: 'ginecologia', license: 'GIN-11111', experience: '15 años',
+          schedule: { monday: { start: '08:00', end: '16:00', available: true }, tuesday: { start: '08:00', end: '16:00', available: true }, wednesday: { start: '08:00', end: '16:00', available: true }, thursday: { start: '08:00', end: '16:00', available: true }, friday: { start: '08:00', end: '14:00', available: true }, saturday: { start: '', end: '', available: false }, sunday: { start: '', end: '', available: false } },
+          status: 'activo'
+        },
+        {
+          id: 4, name: 'Dr. Luis Martínez', email: 'luis.martinez@clinicadelux.com', phone: '+52 55 4567 8901', disciplineId: 'traumatologia-ortopedia', license: 'TRA-22222', experience: '10 años',
+          schedule: { monday: { start: '07:00', end: '15:00', available: true }, tuesday: { start: '07:00', end: '15:00', available: true }, wednesday: { start: '07:00', end: '15:00', available: true }, thursday: { start: '07:00', end: '15:00', available: true }, friday: { start: '07:00', end: '13:00', available: true }, saturday: { start: '', end: '', available: false }, sunday: { start: '', end: '', available: false } },
+          status: 'activo'
+        }
+      ];
+      localStorage.setItem('clinic_professionals', JSON.stringify(initialProfessionals));
+    }
+    
+    // Pacientes
+    if (!localStorage.getItem('clinic_patients')) {
+      const initialPatients = [
+        {
+          id: 1, name: 'Juan Pérez García', email: 'juan.perez@email.com', phone: '+52 55 1111 2222', age: 35, gender: 'masculino', 
+          address: 'Av. Insurgentes 123, Col. Roma, CDMX', emergencyContact: 'María Pérez', emergencyPhone: '+52 55 3333 4444',
+          medicalHistory: 'Hipertensión controlada', allergies: 'Ninguna conocida', medications: 'Losartán 50mg', notes: 'Paciente regular',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 2, name: 'Ana Martínez López', email: 'ana.martinez@email.com', phone: '+52 55 5555 6666', age: 28, gender: 'femenino',
+          address: 'Calle Reforma 456, Col. Juárez, CDMX', emergencyContact: 'Carlos Martínez', emergencyPhone: '+52 55 7777 8888',
+          medicalHistory: 'Ninguna', allergies: 'Polen', medications: 'Ninguna', notes: 'Primera consulta',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 3, name: 'Carlos Rodríguez Sánchez', email: 'carlos.rodriguez@email.com', phone: '+52 55 9999 0000', age: 42, gender: 'masculino',
+          address: 'Av. Universidad 789, Col. Del Valle, CDMX', emergencyContact: 'Laura Rodríguez', emergencyPhone: '+52 55 1234 5678',
+          medicalHistory: 'Diabetes tipo 2', allergies: 'Penicilina', medications: 'Metformina 850mg', notes: 'Control mensual',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 4, name: 'María González Hernández', email: 'maria.gonzalez@email.com', phone: '+52 55 2468 1357', age: 31, gender: 'femenino',
+          address: 'Calle Madero 321, Col. Centro, CDMX', emergencyContact: 'José González', emergencyPhone: '+52 55 9876 5432',
+          medicalHistory: 'Ninguna', allergies: 'Mariscos', medications: 'Vitaminas prenatales', notes: 'Embarazo de 20 semanas',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 5, name: 'Pedro Jiménez Morales', email: 'pedro.jimenez@email.com', phone: '+52 55 1357 2468', age: 55, gender: 'masculino',
+          address: 'Av. Patriotismo 654, Col. San Pedro, CDMX', emergencyContact: 'Carmen Jiménez', emergencyPhone: '+52 55 5432 1098',
+          medicalHistory: 'Artritis reumatoide', allergies: 'Aspirina', medications: 'Metotrexato', notes: 'Seguimiento reumatológico',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      localStorage.setItem('clinic_patients', JSON.stringify(initialPatients));
+    }
+    
+    // Citas
+    if (!localStorage.getItem('clinic_appointments')) {
+      // Generar fechas para las citas (hoy y próximos días)
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      
+      const formatDate = (date) => {
+        return date.toISOString().split('T')[0];
+      };
+      
+      const initialAppointments = [
+        {
+          id: 1, patientId: 1, patientName: 'Juan Pérez García', patientEmail: 'juan.perez@email.com', patientPhone: '+52 55 1111 2222',
+          professionalId: 1, professionalName: 'Dr. Ana García', date: formatDate(today), time: '10:00', type: 'consulta-inicial',
+          notes: 'Primera consulta por hipertensión', status: 'programada', paymentStatus: 'pendiente', cost: 800,
+          folio: 'GMD-2023001', createdAt: new Date().toISOString()
+        },
+        {
+          id: 2, patientId: 2, patientName: 'Ana Martínez López', patientEmail: 'ana.martinez@email.com', patientPhone: '+52 55 5555 6666',
+          professionalId: 2, professionalName: 'Dr. Carlos Ruiz', date: formatDate(tomorrow), time: '11:30', type: 'consulta-inicial',
+          notes: 'Revisión general', status: 'programada', paymentStatus: 'pagado', cost: 700,
+          folio: 'GMD-2023002', createdAt: new Date().toISOString()
+        },
+        {
+          id: 3, patientId: 3, patientName: 'Carlos Rodríguez Sánchez', patientEmail: 'carlos.rodriguez@email.com', patientPhone: '+52 55 9999 0000',
+          professionalId: 3, professionalName: 'Dra. María Fernández', date: formatDate(nextWeek), time: '09:00', type: 'seguimiento',
+          notes: 'Control de diabetes', status: 'programada', paymentStatus: 'pendiente', cost: 600,
+          folio: 'GMD-2023003', createdAt: new Date().toISOString()
+        },
+        {
+          id: 4, patientId: 4, patientName: 'María González Hernández', patientEmail: 'maria.gonzalez@email.com', patientPhone: '+52 55 2468 1357',
+          professionalId: 3, professionalName: 'Dra. María Fernández', date: formatDate(today), time: '16:00', type: 'seguimiento',
+          notes: 'Control de embarazo', status: 'programada', paymentStatus: 'pagado', cost: 900,
+          folio: 'GMD-2023004', createdAt: new Date().toISOString()
+        },
+        {
+          id: 5, patientId: 5, patientName: 'Pedro Jiménez Morales', patientEmail: 'pedro.jimenez@email.com', patientPhone: '+52 55 1357 2468',
+          professionalId: 4, professionalName: 'Dr. Luis Martínez', date: formatDate(tomorrow), time: '12:00', type: 'seguimiento',
+          notes: 'Revisión de artritis', status: 'programada', paymentStatus: 'pendiente', cost: 750,
+          folio: 'GMD-2023005', createdAt: new Date().toISOString()
+        }
+      ];
+      localStorage.setItem('clinic_appointments', JSON.stringify(initialAppointments));
+    }
+  };
+
+  const handleLogin = async (userData) => {
+    setIsLoading(true);
+    try {
+      // Intentar login con API
+      const response = await apiService.login(userData);
+      
+      if (response && response.success) {
+        setIsAuthenticated(true);
+        setCurrentUser(response.user);
+        localStorage.setItem('clinic_auth', 'true');
+        localStorage.setItem('clinic_user', JSON.stringify(response.user));
+        setCurrentView('dashboard');
+        toast({
+          title: "¡Bienvenido!",
+          description: `Hola ${response.user.name}, has iniciado sesión correctamente.`,
+        });
+      } else {
+        toast({
+          title: "Error de autenticación",
+          description: "Usuario o contraseña incorrectos.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error de login:", error);
+      toast({
+        title: "Error de conexión",
+        description: "No se pudo conectar al servidor. Usando modo offline.",
+        variant: "destructive"
+      });
+      
+      // Fallback a usuarios locales
+      const validUsers = [
+        { username: 'admin', password: 'password', name: 'Admin General', role: 'Administrador', id: 1 },
+        { username: 'gerente', password: 'password', name: 'Gerente Principal', role: 'Gerente', id: 2 },
+        { username: 'profesional1', password: 'password', name: 'Dr. Carlos Ruiz', role: 'Profesional', id: 3 },
+        { username: 'recepcion', password: 'password', name: 'María López', role: 'Recepcionista', id: 4 }
+      ];
+      
+      const user = validUsers.find(
+        u => u.username === userData.username && u.password === userData.password
+      );
+      
+      if (user) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+        localStorage.setItem('clinic_auth', 'true');
+        localStorage.setItem('clinic_user', JSON.stringify(user));
+        setCurrentView('dashboard');
+        toast({
+          title: "¡Bienvenido!",
+          description: `Hola ${user.name}, has iniciado sesión correctamente (modo offline).`,
+        });
+      } else {
+        toast({
+          title: "Error de autenticación",
+          description: "Usuario o contraseña incorrectos.",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -237,7 +426,7 @@ function App() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary to-accent-alt">
-        <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} />
+        <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} isLoading={isLoading} />
         <Toaster />
         <PWAInstallPrompt />
         <OfflineIndicator />
