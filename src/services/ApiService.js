@@ -1,4 +1,4 @@
-// Servicio centralizado para manejo de APIs con logs detallados
+// Servicio centralizado para manejo de APIs - Solo Base de Datos
 class ApiService {
   constructor() {
     this.baseURL = this.detectBaseURL();
@@ -88,13 +88,7 @@ class ApiService {
           duration
         });
         
-        // Usar fallback a localStorage
-        this.log('info', `Usando fallback a localStorage para: ${endpoint}`, {
-          endpoint,
-          method: options.method
-        });
-        
-        return this.handleLocalStorageFallback(endpoint, options);
+        throw new Error(`Error de conexión con la base de datos: ${textResponse}`);
       }
 
     } catch (error) {
@@ -106,149 +100,7 @@ class ApiService {
         type: 'REQUEST_ERROR'
       });
       
-      // Usar fallback a localStorage
-      this.log('info', `Usando fallback a localStorage para: ${endpoint}`, {
-        endpoint,
-        method: options.method
-      });
-      
-      return this.handleLocalStorageFallback(endpoint, options);
-    }
-  }
-
-  // Fallback a localStorage cuando la API falla
-  handleLocalStorageFallback(endpoint, options) {
-    const method = options.method || 'GET';
-    
-    // Extraer ID de la URL si existe
-    const idMatch = endpoint.match(/\?id=(\d+)/);
-    const id = idMatch ? parseInt(idMatch[1]) : null;
-    
-    // Determinar la entidad basada en el endpoint
-    let entity = endpoint.split('?')[0].replace('.php', '');
-    
-    // Manejar login especial
-    if (entity === 'login') {
-      const credentials = JSON.parse(options.body || '{}');
-      const validUsers = [
-        { username: 'admin', password: 'password', name: 'Admin General', role: 'Administrador', id: 1 },
-        { username: 'gerente', password: 'password', name: 'Gerente Principal', role: 'Gerente', id: 2 },
-        { username: 'profesional1', password: 'password', name: 'Dr. Carlos Ruiz', role: 'Profesional', id: 3 },
-        { username: 'recepcion', password: 'password', name: 'María López', role: 'Recepcionista', id: 4 }
-      ];
-      
-      const user = validUsers.find(
-        u => u.username === credentials.username && u.password === credentials.password
-      );
-      
-      if (user) {
-        return {
-          success: true,
-          user: {
-            id: user.id,
-            username: user.username,
-            name: user.name,
-            email: `${user.username}@clinicadelux.com`,
-            role: user.role
-          },
-          message: 'Login exitoso (modo local)'
-        };
-      } else {
-        throw new Error('Usuario o contraseña incorrectos');
-      }
-    }
-    
-    // Manejar health-check
-    if (entity === 'health-check') {
-      return {
-        status: 'ok',
-        database: 'connected',
-        clinic: 'Clínica Delux',
-        location: 'Ciudad de México, México',
-        timezone: 'America/Mexico_City',
-        server_time: new Date().toISOString(),
-        tables: ['disciplines', 'professionals', 'patients', 'appointments', 'users'],
-        mysql_timezone: '-06:00',
-        api_version: '1.0.0',
-        mode: 'localStorage fallback'
-      };
-    }
-    
-    // Manejar send-email y send-email-fallback
-    if (entity === 'send-email' || entity === 'send-email-fallback') {
-      const emailData = JSON.parse(options.body || '{}');
-      
-      // Guardar en historial local
-      const emailHistory = {
-        id: Date.now(),
-        type: emailData.type || 'manual',
-        recipient: emailData.to,
-        subject: emailData.subject,
-        sentAt: new Date().toISOString(),
-        status: 'simulado'
-      };
-      
-      const currentHistory = JSON.parse(localStorage.getItem('clinic_email_history') || '[]');
-      const updatedHistory = [emailHistory, ...currentHistory];
-      localStorage.setItem('clinic_email_history', JSON.stringify(updatedHistory));
-      
-      // Disparar evento para actualizar UI
-      window.dispatchEvent(new Event('storage'));
-      
-      return {
-        success: true,
-        message: 'Email simulado (modo localStorage fallback)',
-        method: 'Simulación',
-        messageId: 'sim_' + Date.now(),
-        note: 'El email no se envió realmente, pero se guardó en el historial para desarrollo'
-      };
-    }
-    
-    // Para otras entidades, usar localStorage
-    const storageKey = `clinic_${entity}`;
-    let data = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    
-    switch (method) {
-      case 'GET':
-        if (id) {
-          const item = data.find(item => item.id === id);
-          if (!item) {
-            throw new Error(`${entity} not found with id ${id}`);
-          }
-          return item;
-        }
-        return data;
-        
-      case 'POST':
-        const newItem = {
-          id: Date.now(),
-          ...JSON.parse(options.body || '{}'),
-          createdAt: new Date().toISOString()
-        };
-        data.push(newItem);
-        localStorage.setItem(storageKey, JSON.stringify(data));
-        return newItem;
-        
-      case 'PUT':
-        if (!id) {
-          throw new Error(`ID required for updating ${entity}`);
-        }
-        const updatedData = data.map(item => 
-          item.id === id ? { ...item, ...JSON.parse(options.body || '{}') } : item
-        );
-        localStorage.setItem(storageKey, JSON.stringify(updatedData));
-        return updatedData.find(item => item.id === id);
-        
-      case 'DELETE':
-        if (!id) {
-          throw new Error(`ID required for deleting ${entity}`);
-        }
-        const filteredData = data.filter(item => item.id !== id);
-        localStorage.setItem(storageKey, JSON.stringify(filteredData));
-        return { success: true };
-        
-      default:
-        throw new Error(`Method ${method} not supported`);
+      throw error;
     }
   }
 

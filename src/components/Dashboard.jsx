@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Users, Clock, TrendingUp, AlertCircle, Briefcase } from 'lucide-react';
+import apiService from '@/services/ApiService';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -11,6 +12,7 @@ const Dashboard = () => {
     totalDisciplines: 0,
   });
   const [clinicName, setClinicName] = useState("Grupo Médico Delux");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedClinicName = localStorage.getItem('clinic_name');
@@ -18,28 +20,51 @@ const Dashboard = () => {
         setClinicName(storedClinicName);
     }
 
-    const appointments = JSON.parse(localStorage.getItem('clinic_appointments') || '[]');
-    const professionals = JSON.parse(localStorage.getItem('clinic_professionals') || '[]');
-    const patients = JSON.parse(localStorage.getItem('clinic_patients') || '[]');
-    const disciplines = JSON.parse(localStorage.getItem('clinic_disciplines') || '[]');
-
-    const today = new Date().toDateString();
-    const todayAppointments = appointments.filter(apt => 
-      new Date(apt.date).toDateString() === today
-    ).length;
-
-    const pendingAppointments = appointments.filter(apt => 
-      apt.status === 'programada'
-    ).length;
-
-    setStats({
-      todayAppointments,
-      totalProfessionals: professionals.length,
-      totalPatients: patients.length,
-      pendingAppointments,
-      totalDisciplines: disciplines.length,
-    });
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Cargar datos desde la API
+      const [appointments, professionals, patients, disciplines] = await Promise.all([
+        apiService.getAppointments(),
+        apiService.getProfessionals(),
+        apiService.getPatients(),
+        apiService.getDisciplines()
+      ]);
+
+      const today = new Date().toDateString();
+      const todayAppointments = appointments.filter(apt => 
+        new Date(apt.date).toDateString() === today
+      ).length;
+
+      const pendingAppointments = appointments.filter(apt => 
+        apt.status === 'programada'
+      ).length;
+
+      setStats({
+        todayAppointments,
+        totalProfessionals: professionals.length,
+        totalPatients: patients.length,
+        pendingAppointments,
+        totalDisciplines: disciplines.length,
+      });
+    } catch (error) {
+      console.error('Error cargando datos del dashboard:', error);
+      // En caso de error, mostrar valores por defecto
+      setStats({
+        todayAppointments: 0,
+        totalProfessionals: 0,
+        totalPatients: 0,
+        pendingAppointments: 0,
+        totalDisciplines: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const statCards = [
     { title: 'Citas de Hoy', value: stats.todayAppointments, icon: Calendar, color: 'from-primary to-accent-alt', bgColor: 'bg-primary/10' },
@@ -55,6 +80,28 @@ const Dashboard = () => {
     { id: 3, type: 'appointment', message: 'Cita completada: Dr. Ruiz', time: '08:45 AM' },
     { id: 4, type: 'system', message: 'Recordatorios enviados', time: '08:00 AM' }
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Cargando datos de {clinicName}...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+          {[...Array(5)].map((_, index) => (
+            <div key={index} className="bg-muted/20 rounded-xl p-4 sm:p-6 animate-pulse">
+              <div className="h-12 bg-muted rounded mb-4"></div>
+              <div className="h-4 bg-muted rounded mb-2"></div>
+              <div className="h-8 bg-muted rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
