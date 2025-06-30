@@ -4,7 +4,7 @@ require_once 'config.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_SERVER['REQUEST_URI'];
 $pathParts = explode('/', trim(parse_url($path, PHP_URL_PATH), '/'));
-$professionalId = isset($_GET['id']) ? $_GET['id'] : null;
+$professionalId = isset($_GET['id']) ? intval($_GET['id']) : null;
 
 try {
     $pdo = getDatabase();
@@ -31,6 +31,9 @@ try {
                     $professional['schedule'] = json_decode($professional['schedule'], true);
                 }
                 
+                // Mapear discipline_id a disciplineId para compatibilidad con frontend
+                $professional['disciplineId'] = $professional['discipline_id'];
+                
                 logApiActivity('professionals', 'GET', 200, "Retrieved professional: ID $professionalId");
                 sendResponse($professional);
             } else {
@@ -42,11 +45,13 @@ try {
                 ");
                 $professionals = $stmt->fetchAll();
                 
-                // Decodificar JSON del schedule para cada profesional
+                // Decodificar JSON del schedule para cada profesional y mapear campos
                 foreach ($professionals as &$professional) {
                     if ($professional['schedule']) {
                         $professional['schedule'] = json_decode($professional['schedule'], true);
                     }
+                    // Mapear discipline_id a disciplineId para compatibilidad con frontend
+                    $professional['disciplineId'] = $professional['discipline_id'];
                 }
                 
                 logApiActivity('professionals', 'GET', 200, "Retrieved all professionals: " . count($professionals) . " records");
@@ -65,6 +70,9 @@ try {
                 }
             }
             
+            // Mapear disciplineId a discipline_id
+            $disciplineId = $data['disciplineId'] ?? $data['discipline_id'];
+            
             $stmt = $pdo->prepare("
                 INSERT INTO professionals 
                 (name, email, phone, discipline_id, schedule) 
@@ -75,7 +83,7 @@ try {
                 $data['name'],
                 $data['email'],
                 $data['phone'],
-                $data['disciplineId'],
+                $disciplineId,
                 json_encode($data['schedule'])
             ]);
             
@@ -94,6 +102,9 @@ try {
                 $professional['schedule'] = json_decode($professional['schedule'], true);
             }
             
+            // Mapear discipline_id a disciplineId para compatibilidad con frontend
+            $professional['disciplineId'] = $professional['discipline_id'];
+            
             logApiActivity('professionals', 'POST', 201, "Created professional: ID $professionalId");
             sendResponse($professional, 201);
             break;
@@ -106,6 +117,9 @@ try {
             
             $data = getRequestData();
             
+            // Mapear disciplineId a discipline_id
+            $disciplineId = $data['disciplineId'] ?? $data['discipline_id'];
+            
             $stmt = $pdo->prepare("
                 UPDATE professionals 
                 SET name = ?, email = ?, phone = ?, discipline_id = ?, schedule = ?
@@ -116,7 +130,7 @@ try {
                 $data['name'],
                 $data['email'],
                 $data['phone'],
-                $data['disciplineId'],
+                $disciplineId,
                 json_encode($data['schedule']),
                 $professionalId
             ]);
@@ -133,6 +147,9 @@ try {
             if ($professional['schedule']) {
                 $professional['schedule'] = json_decode($professional['schedule'], true);
             }
+            
+            // Mapear discipline_id a disciplineId para compatibilidad con frontend
+            $professional['disciplineId'] = $professional['discipline_id'];
             
             logApiActivity('professionals', 'PUT', 200, "Updated professional: ID $professionalId");
             sendResponse($professional);

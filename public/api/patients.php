@@ -4,7 +4,7 @@ require_once 'config.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_SERVER['REQUEST_URI'];
 $pathParts = explode('/', trim(parse_url($path, PHP_URL_PATH), '/'));
-$patientId = isset($_GET['id']) ? $_GET['id'] : null;
+$patientId = isset($_GET['id']) ? intval($_GET['id']) : null;
 
 try {
     $pdo = getDatabase();

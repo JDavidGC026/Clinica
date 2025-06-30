@@ -1,4 +1,4 @@
-// Servicio centralizado para manejo de APIs - Solo Base de Datos
+// Servicio centralizado para manejo de APIs - Corregido
 class ApiService {
   constructor() {
     this.baseURL = this.detectBaseURL();
@@ -35,16 +35,20 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    // Asegurarse de que el endpoint termine en .php
-    if (!endpoint.endsWith('.php')) {
-      endpoint = `${endpoint}.php`;
-    }
+    // Limpiar endpoint - remover .php si ya existe
+    let cleanEndpoint = endpoint.replace(/\.php$/, '');
     
-    const url = `${this.baseURL}api/${endpoint}`;
+    // Separar endpoint base de parámetros
+    const [baseEndpoint, queryParams] = cleanEndpoint.split('?');
+    
+    // Construir URL final
+    const finalEndpoint = queryParams ? `${baseEndpoint}.php?${queryParams}` : `${baseEndpoint}.php`;
+    const url = `${this.baseURL}api/${finalEndpoint}`;
+    
     const startTime = Date.now();
 
     this.log('info', `Iniciando petición: ${options.method || 'GET'} ${url}`, {
-      endpoint,
+      endpoint: finalEndpoint,
       options: { ...options, body: options.body ? JSON.parse(options.body) : undefined }
     });
 
@@ -59,30 +63,33 @@ class ApiService {
 
       const duration = Date.now() - startTime;
       
+      // Clonar la respuesta para poder leerla múltiples veces
+      const responseClone = response.clone();
+      
       try {
         const responseData = await response.json();
         
-        if (response.ok) {
-          this.log('info', `Petición exitosa: ${response.status} ${url} (${duration}ms)`, {
-            status: response.status,
+        if (responseClone.ok) {
+          this.log('info', `Petición exitosa: ${responseClone.status} ${url} (${duration}ms)`, {
+            status: responseClone.status,
             duration,
             data: responseData
           });
           return responseData;
         } else {
-          this.log('error', `Error HTTP: ${response.status} ${url} (${duration}ms)`, {
-            status: response.status,
-            statusText: response.statusText,
+          this.log('error', `Error HTTP: ${responseClone.status} ${url} (${duration}ms)`, {
+            status: responseClone.status,
+            statusText: responseClone.statusText,
             error: responseData,
             duration
           });
-          throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(responseData.error || `HTTP ${responseClone.status}: ${responseClone.statusText}`);
         }
       } catch (jsonError) {
-        // Si no se puede parsear como JSON
-        const textResponse = await response.text();
+        // Si no se puede parsear como JSON, usar el clon
+        const textResponse = await responseClone.text();
         this.log('error', `Error al parsear JSON: ${url} (${duration}ms)`, {
-          status: response.status,
+          status: responseClone.status,
           responseText: textResponse,
           jsonError: jsonError.message,
           duration
@@ -117,13 +124,6 @@ class ApiService {
   }
 
   async put(endpoint, data) {
-    // Corregir el formato de la URL para evitar el problema con .php
-    if (endpoint.includes('?')) {
-      const [base, params] = endpoint.split('?');
-      endpoint = base.endsWith('.php') ? base : `${base}.php`;
-      endpoint = `${endpoint}?${params}`;
-    }
-    
     return this.request(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data)
