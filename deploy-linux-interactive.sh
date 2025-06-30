@@ -84,169 +84,6 @@ test_mysql_connection() {
     fi
 }
 
-# Función para crear base de datos y tablas
-setup_database() {
-    log_step "Configurando base de datos..."
-    
-    # Crear base de datos
-    log_info "📊 Creando base de datos '$DB_NAME'..."
-    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || {
-        log_error "Error creando base de datos"
-        return 1
-    }
-    
-    log_success "✅ Base de datos '$DB_NAME' creada/verificada"
-    
-    # Ejecutar migraciones SQL
-    log_info "📋 Ejecutando migraciones SQL..."
-    
-    # Crear tablas principales
-    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" << 'EOF'
--- Configurar zona horaria
-SET time_zone = '-06:00';
-
--- Tabla de disciplinas
-CREATE TABLE IF NOT EXISTS disciplines (
-    id VARCHAR(100) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Tabla de profesionales
-CREATE TABLE IF NOT EXISTS professionals (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(50),
-    discipline_id VARCHAR(100),
-    license VARCHAR(100),
-    experience VARCHAR(100),
-    schedule JSON,
-    status VARCHAR(50) DEFAULT 'activo',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (discipline_id) REFERENCES disciplines(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Tabla de pacientes
-CREATE TABLE IF NOT EXISTS patients (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(50),
-    age INT,
-    gender VARCHAR(50),
-    address TEXT,
-    emergency_contact VARCHAR(255),
-    emergency_phone VARCHAR(50),
-    medical_history TEXT,
-    allergies TEXT,
-    medications TEXT,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Tabla de citas
-CREATE TABLE IF NOT EXISTS appointments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT,
-    patient_name VARCHAR(255) NOT NULL,
-    patient_email VARCHAR(255) NOT NULL,
-    patient_phone VARCHAR(50),
-    professional_id INT,
-    professional_name VARCHAR(255),
-    date DATE NOT NULL,
-    time TIME NOT NULL,
-    type VARCHAR(100) NOT NULL,
-    notes TEXT,
-    status VARCHAR(50) DEFAULT 'programada',
-    payment_status VARCHAR(50) DEFAULT 'pendiente',
-    cost DECIMAL(10,2),
-    folio VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL,
-    FOREIGN KEY (professional_id) REFERENCES professionals(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Tabla de usuarios
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50) NOT NULL,
-    active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Tabla de historial de emails
-CREATE TABLE IF NOT EXISTS email_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type VARCHAR(100) NOT NULL,
-    recipient VARCHAR(255) NOT NULL,
-    subject VARCHAR(500) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    error_message TEXT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-EOF
-
-    if [ $? -eq 0 ]; then
-        log_success "✅ Tablas creadas exitosamente"
-    else
-        log_error "❌ Error creando tablas"
-        return 1
-    fi
-    
-    # Insertar datos de ejemplo
-    log_info "📝 Insertando datos de ejemplo..."
-    
-    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" << 'EOF'
--- Insertar disciplinas
-INSERT IGNORE INTO disciplines (id, name) VALUES
-('medicina-general', 'Medicina General'),
-('pediatria', 'Pediatría'),
-('ginecologia', 'Ginecología'),
-('traumatologia-ortopedia', 'Traumatología y Ortopedia'),
-('urologia', 'Urología'),
-('medicina-interna', 'Medicina Interna'),
-('gastroenterologia', 'Gastroenterología'),
-('nutricion', 'Nutrición'),
-('dermatologia', 'Dermatología'),
-('psicologia-clinica', 'Psicología Clínica');
-
--- Insertar usuarios de prueba
-INSERT IGNORE INTO users (username, password_hash, name, email, role) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador General', 'admin@clinicadelux.com', 'Administrador'),
-('gerente', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Gerente Principal', 'gerente@clinicadelux.com', 'Gerente'),
-('profesional1', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', 'Profesional'),
-('recepcion', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'María López', 'maria.lopez@clinicadelux.com', 'Recepcionista');
-
--- Insertar profesionales de ejemplo
-INSERT IGNORE INTO professionals (name, email, phone, discipline_id, license, experience, schedule) VALUES
-('Dr. Ana García', 'ana.garcia@clinicadelux.com', '+52 55 1234 5678', 'medicina-general', 'COL-12345', '8 años', '{"monday":{"start":"09:00","end":"17:00","available":true},"tuesday":{"start":"09:00","end":"17:00","available":true},"wednesday":{"start":"09:00","end":"17:00","available":true},"thursday":{"start":"09:00","end":"17:00","available":true},"friday":{"start":"09:00","end":"15:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'),
-('Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', '+52 55 2345 6789', 'pediatria', 'PED-67890', '12 años', '{"monday":{"start":"10:00","end":"18:00","available":true},"tuesday":{"start":"10:00","end":"18:00","available":true},"wednesday":{"start":"10:00","end":"18:00","available":true},"thursday":{"start":"10:00","end":"18:00","available":true},"friday":{"start":"10:00","end":"16:00","available":true},"saturday":{"start":"09:00","end":"13:00","available":true},"sunday":{"start":"","end":"","available":false}}'),
-('Dra. María Fernández', 'maria.fernandez@clinicadelux.com', '+52 55 3456 7890', 'ginecologia', 'GIN-11111', '15 años', '{"monday":{"start":"08:00","end":"16:00","available":true},"tuesday":{"start":"08:00","end":"16:00","available":true},"wednesday":{"start":"08:00","end":"16:00","available":true},"thursday":{"start":"08:00","end":"16:00","available":true},"friday":{"start":"08:00","end":"14:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'),
-('Dr. Luis Martínez', 'luis.martinez@clinicadelux.com', '+52 55 4567 8901', 'traumatologia-ortopedia', 'TRA-22222', '10 años', '{"monday":{"start":"07:00","end":"15:00","available":true},"tuesday":{"start":"07:00","end":"15:00","available":true},"wednesday":{"start":"07:00","end":"15:00","available":true},"thursday":{"start":"07:00","end":"15:00","available":true},"friday":{"start":"07:00","end":"13:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}');
-
--- Insertar pacientes de ejemplo
-INSERT IGNORE INTO patients (name, email, phone, age, gender, address, emergency_contact, emergency_phone, medical_history, allergies, medications, notes) VALUES
-('Juan Pérez García', 'juan.perez@email.com', '+52 55 1111 2222', 35, 'masculino', 'Av. Insurgentes 123, Col. Roma, CDMX', 'María Pérez', '+52 55 3333 4444', 'Hipertensión controlada', 'Ninguna conocida', 'Losartán 50mg', 'Paciente regular'),
-('Ana Martínez López', 'ana.martinez@email.com', '+52 55 5555 6666', 28, 'femenino', 'Calle Reforma 456, Col. Juárez, CDMX', 'Carlos Martínez', '+52 55 7777 8888', 'Ninguna', 'Polen', 'Ninguna', 'Primera consulta'),
-('Carlos Rodríguez Sánchez', 'carlos.rodriguez@email.com', '+52 55 9999 0000', 42, 'masculino', 'Av. Universidad 789, Col. Del Valle, CDMX', 'Laura Rodríguez', '+52 55 1234 5678', 'Diabetes tipo 2', 'Penicilina', 'Metformina 850mg', 'Control mensual'),
-('María González Hernández', 'maria.gonzalez@email.com', '+52 55 2468 1357', 31, 'femenino', 'Calle Madero 321, Col. Centro, CDMX', 'José González', '+52 55 9876 5432', 'Ninguna', 'Mariscos', 'Vitaminas prenatales', 'Embarazo de 20 semanas'),
-('Pedro Jiménez Morales', 'pedro.jimenez@email.com', '+52 55 1357 2468', 55, 'masculino', 'Av. Patriotismo 654, Col. San Pedro, CDMX', 'Carmen Jiménez', '+52 55 5432 1098', 'Artritis reumatoide', 'Aspirina', 'Metotrexato', 'Seguimiento reumatológico');
-EOF
-
-    if [ $? -eq 0 ]; then
-        log_success "✅ Datos de ejemplo insertados"
-    else
-        log_warning "⚠️  Algunos datos de ejemplo no se pudieron insertar (puede ser normal si ya existen)"
-    fi
-    
-    return 0
-}
-
 # Función para actualizar configuración PHP
 update_php_config() {
     log_info "🔧 Actualizando configuración de PHP..."
@@ -455,17 +292,8 @@ main() {
         log_warning "Directorio de iconos no encontrado"
     fi
     
-    # Configurar base de datos si no se saltó
-    if [ "$SKIP_DB_SETUP" = false ]; then
-        setup_database
-        update_php_config
-    else
-        log_warning "⚠️  Configuración de base de datos saltada"
-        log_info "📝 Para configurar manualmente:"
-        echo "   1. Crea la base de datos: $DB_NAME"
-        echo "   2. Ejecuta las migraciones SQL del directorio supabase/migrations/"
-        echo "   3. Actualiza $DEPLOY_PATH/api/config.php con las credenciales correctas"
-    fi
+    # Actualizar configuración PHP
+    update_php_config
     
     # Configurar permisos
     log_step "Configurando permisos..."
@@ -488,27 +316,20 @@ main() {
     log_success "🌐 URL del sistema: http://$(hostname -I | awk '{print $1}')/Clinica-delux/"
     echo ""
     
-    if [ "$SKIP_DB_SETUP" = false ]; then
-        echo "🔑 CREDENCIALES DE ACCESO:"
-        echo "   👤 Usuario: admin"
-        echo "   🔐 Contraseña: password"
-        echo ""
-        echo "   👤 Usuario: gerente"
-        echo "   🔐 Contraseña: password"
-        echo ""
-        echo "   👤 Usuario: profesional1"
-        echo "   🔐 Contraseña: password"
-        echo ""
-        echo "   👤 Usuario: recepcion"
-        echo "   🔐 Contraseña: password"
-        echo ""
-        log_warning "⚠️  IMPORTANTE: Cambia las contraseñas después del primer login"
-    else
-        echo "⚠️  CONFIGURACIÓN PENDIENTE:"
-        echo "   1. Configura la base de datos manualmente"
-        echo "   2. Actualiza las credenciales en $DEPLOY_PATH/api/config.php"
-        echo "   3. Ejecuta las migraciones SQL"
-    fi
+    echo "🔑 CREDENCIALES DE ACCESO:"
+    echo "   👤 Usuario: admin"
+    echo "   🔐 Contraseña: password"
+    echo ""
+    echo "   👤 Usuario: gerente"
+    echo "   🔐 Contraseña: password"
+    echo ""
+    echo "   👤 Usuario: profesional1"
+    echo "   🔐 Contraseña: password"
+    echo ""
+    echo "   👤 Usuario: recepcion"
+    echo "   🔐 Contraseña: password"
+    echo ""
+    log_warning "⚠️  IMPORTANTE: Cambia las contraseñas después del primer login"
     
     echo ""
     echo "📋 PRÓXIMOS PASOS:"

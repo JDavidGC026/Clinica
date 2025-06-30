@@ -307,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ['Dr. Ana García', 'ana.garcia@clinicadelux.com', '+52 55 1234 5678', 'medicina-general', 'COL-12345', '8 años', '{"monday":{"start":"09:00","end":"17:00","available":true},"tuesday":{"start":"09:00","end":"17:00","available":true},"wednesday":{"start":"09:00","end":"17:00","available":true},"thursday":{"start":"09:00","end":"17:00","available":true},"friday":{"start":"09:00","end":"15:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
                     ['Dr. Carlos Ruiz', 'carlos.ruiz@clinicadelux.com', '+52 55 2345 6789', 'pediatria', 'PED-67890', '12 años', '{"monday":{"start":"10:00","end":"18:00","available":true},"tuesday":{"start":"10:00","end":"18:00","available":true},"wednesday":{"start":"10:00","end":"18:00","available":true},"thursday":{"start":"10:00","end":"18:00","available":true},"friday":{"start":"10:00","end":"16:00","available":true},"saturday":{"start":"09:00","end":"13:00","available":true},"sunday":{"start":"","end":"","available":false}}'],
                     ['Dra. María Fernández', 'maria.fernandez@clinicadelux.com', '+52 55 3456 7890', 'ginecologia', 'GIN-11111', '15 años', '{"monday":{"start":"08:00","end":"16:00","available":true},"tuesday":{"start":"08:00","end":"16:00","available":true},"wednesday":{"start":"08:00","end":"16:00","available":true},"thursday":{"start":"08:00","end":"16:00","available":true},"friday":{"start":"08:00","end":"14:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}'],
-                    ['Dr. Luis Martínez', 'luis.martinez@clinicadelux.com', '+52 55 4567 8901', 'traumatologia-ortopedia', 'TRA-22222', '10 años', '{"monday":{"start":"07:00","end":"15:00","available":true},"tuesday":{"start":"07:00","end":"15:00","available":true},"wednesday":{"start":"07:00","end":"15:00","available":true},"thursday":{"start":"07:00","end":"15:00","available":true},"friday":{"start":"07:00","end":"13:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}"}']
+                    ['Dr. Luis Martínez', 'luis.martinez@clinicadelux.com', '+52 55 4567 8901', 'traumatologia-ortopedia', 'TRA-22222', '10 años', '{"monday":{"start":"07:00","end":"15:00","available":true},"tuesday":{"start":"07:00","end":"15:00","available":true},"wednesday":{"start":"07:00","end":"15:00","available":true},"thursday":{"start":"07:00","end":"15:00","available":true},"friday":{"start":"07:00","end":"13:00","available":true},"saturday":{"start":"","end":"","available":false},"sunday":{"start":"","end":"","available":false}}']
                 ];
                 
                 $stmt = $pdo->prepare("INSERT IGNORE INTO professionals (name, email, phone, discipline_id, license, experience, schedule) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -703,7 +703,6 @@ INSTRUCCIONES DE DEPLOY - CLÍNICA DELUX
 📞 SOPORTE:
    - Todos los logs de API se guardan automáticamente
    - Revisa la sección "Logs de API" para diagnósticos
-   - El sistema funciona offline con localStorage como respaldo
 
 🎉 ¡LISTO! Tu sistema de gestión médica está configurado.
 EOF
