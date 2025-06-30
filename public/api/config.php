@@ -13,11 +13,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Configuración de zona horaria para Ciudad de México
 date_default_timezone_set('America/Mexico_City');
 
-// Configuración de base de datos - ACTUALIZA ESTAS CREDENCIALES
-$host = 'localhost';
-$username = 'TU_USUARIO_MYSQL';  // Cambia esto por tu usuario real
-$password = 'TU_PASSWORD_MYSQL'; // Cambia esto por tu contraseña real
-$database = 'clinica_delux';     // Cambia esto por tu base de datos real
+// Cargar variables de entorno desde .env si existe
+$envFile = __DIR__ . '/../../.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+            list($key, $value) = explode('=', $line, 2);
+            $_ENV[trim($key)] = trim($value);
+        }
+    }
+}
+
+// Configuración de base de datos
+$host = $_ENV['DB_HOST'] ?? 'localhost';
+$username = $_ENV['DB_USER'] ?? 'root';
+$password = $_ENV['DB_PASSWORD'] ?? '';
+$database = $_ENV['DB_NAME'] ?? 'clinica_delux';
 
 function getDatabase() {
     global $host, $username, $password, $database;
@@ -33,6 +45,9 @@ function getDatabase() {
         
         return $pdo;
     } catch (PDOException $e) {
+        // Registrar el error en un archivo de log
+        error_log('Error de conexión a la base de datos: ' . $e->getMessage(), 0);
+        
         throw new Exception('Database connection failed: ' . $e->getMessage());
     }
 }
@@ -44,6 +59,9 @@ function sendResponse($data, $status = 200) {
 }
 
 function sendError($message, $status = 500) {
+    // Registrar el error en un archivo de log
+    error_log('API Error: ' . $message . ' (Status: ' . $status . ')', 0);
+    
     http_response_code($status);
     echo json_encode(['error' => $message], JSON_UNESCAPED_UNICODE);
     exit();
@@ -85,4 +103,9 @@ function logApiActivity($endpoint, $method, $status, $message = '') {
     
     file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
+
+// Registrar la actividad actual
+$endpoint = $_SERVER['REQUEST_URI'] ?? 'Unknown';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'Unknown';
+logApiActivity($endpoint, $method, 200, 'API request started');
 ?>
