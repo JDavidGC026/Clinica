@@ -4,8 +4,8 @@ import { Plus, Search, Filter, Calendar, Clock, User, Edit, Trash2, DollarSign, 
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import AppointmentForm from '@/components/AppointmentForm';
+import apiService from '@/services/ApiService';
 import jsPDF from 'jspdf';
-import emailjs from '@emailjs/browser';
 
 const AppointmentManager = () => {
   const [appointments, setAppointments] = useState([]);
@@ -16,6 +16,7 @@ const AppointmentManager = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [clinicName, setClinicName] = useState("Grupo Médico Delux");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAppointments();
@@ -29,16 +30,22 @@ const AppointmentManager = () => {
     filterAppointments();
   }, [appointments, searchTerm, statusFilter, paymentStatusFilter]);
 
-  const loadAppointments = () => {
-    const saved = localStorage.getItem('clinic_appointments');
-    if (saved) {
-      setAppointments(JSON.parse(saved).sort((a,b) => new Date(b.date) - new Date(a.date) || a.time.localeCompare(b.time)));
+  const loadAppointments = async () => {
+    try {
+      setLoading(true);
+      const appointmentsData = await apiService.getAppointments();
+      setAppointments(appointmentsData.sort((a,b) => new Date(b.date) - new Date(a.date) || a.time.localeCompare(b.time)));
+    } catch (error) {
+      console.error('Error cargando citas:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las citas.",
+        variant: "destructive"
+      });
+      setAppointments([]);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const saveAppointments = (newAppointments) => {
-    localStorage.setItem('clinic_appointments', JSON.stringify(newAppointments));
-    setAppointments(newAppointments.sort((a,b) => new Date(b.date) - new Date(a.date) || a.time.localeCompare(b.time)));
   };
 
   const filterAppointments = () => {
@@ -62,54 +69,74 @@ const AppointmentManager = () => {
     setFilteredAppointments(filtered);
   };
 
-  const handleAddAppointment = (appointmentData) => {
-    const newAppointment = {
-      id: Date.now(),
-      ...appointmentData,
-      createdAt: new Date().toISOString()
-    };
-
-    const newAppointments = [...appointments, newAppointment];
-    saveAppointments(newAppointments);
-    setShowForm(false);
-    
-    toast({
-      title: "Cita creada",
-      description: `La cita con folio ${newAppointment.folio} ha sido programada.`,
-    });
-
-    // Simular envío de email de confirmación
-    setTimeout(() => {
+  const handleAddAppointment = async (appointmentData) => {
+    try {
+      const newAppointment = await apiService.createAppointment(appointmentData);
+      setAppointments(prev => [newAppointment, ...prev]);
+      setShowForm(false);
+      
       toast({
-        title: "Notificación (simulada)",
-        description: `Email de confirmación enviado a ${appointmentData.patientEmail}`,
+        title: "Cita creada",
+        description: `La cita con folio ${newAppointment.folio} ha sido programada.`,
       });
-    }, 1000);
+
+      // Simular envío de email de confirmación
+      setTimeout(() => {
+        toast({
+          title: "Notificación (simulada)",
+          description: `Email de confirmación enviado a ${appointmentData.patientEmail}`,
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('Error creando cita:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la cita: " + error.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditAppointment = (appointmentData) => {
-    const updatedAppointments = appointments.map(apt =>
-      apt.id === editingAppointment.id ? { ...apt, ...appointmentData } : apt
-    );
-    
-    saveAppointments(updatedAppointments);
-    setEditingAppointment(null);
-    setShowForm(false);
-    
-    toast({
-      title: "Cita actualizada",
-      description: `La cita con folio ${appointmentData.folio} ha sido actualizada.`,
-    });
+  const handleEditAppointment = async (appointmentData) => {
+    try {
+      const updatedAppointment = await apiService.updateAppointment(editingAppointment.id, appointmentData);
+      setAppointments(prev => prev.map(apt =>
+        apt.id === editingAppointment.id ? updatedAppointment : apt
+      ));
+      setEditingAppointment(null);
+      setShowForm(false);
+      
+      toast({
+        title: "Cita actualizada",
+        description: `La cita con folio ${appointmentData.folio} ha sido actualizada.`,
+      });
+    } catch (error) {
+      console.error('Error actualizando cita:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la cita: " + error.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteAppointment = (id) => {
-    const updatedAppointments = appointments.filter(apt => apt.id !== id);
-    saveAppointments(updatedAppointments);
-    
-    toast({
-      title: "Cita eliminada",
-      description: "La cita ha sido eliminada del sistema.",
-    });
+  const handleDeleteAppointment = async (id) => {
+    try {
+      await apiService.deleteAppointment(id);
+      setAppointments(prev => prev.filter(apt => apt.id !== id));
+      
+      toast({
+        title: "Cita eliminada",
+        description: "La cita ha sido eliminada del sistema.",
+      });
+    } catch (error) {
+      console.error('Error eliminando cita:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la cita: " + error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusColor = (status) => {
@@ -141,69 +168,77 @@ const AppointmentManager = () => {
     return type === 'payment' ? (paymentLabels[status] || status) : (generalLabels[status] || status);
   };
 
-  const generatePatientReportPDF = (appointment) => {
-    const doc = new jsPDF();
-    const professionals = JSON.parse(localStorage.getItem('clinic_professionals') || '[]');
-    const professional = professionals.find(p => p.id.toString() === appointment.professionalId) || { name: 'N/A' };
+  const generatePatientReportPDF = async (appointment) => {
+    try {
+      const professionals = await apiService.getProfessionals();
+      const professional = professionals.find(p => p.id.toString() === appointment.professionalId) || { name: 'N/A' };
 
-    doc.setFontSize(22);
-    doc.setTextColor(40, 58, 90); // Dark Blue
-    doc.text(clinicName, 105, 20, { align: 'center' });
+      const doc = new jsPDF();
 
-    doc.setFontSize(12);
-    doc.setTextColor(100);
-    doc.text(`Folio de Cita: ${appointment.folio}`, 14, 40);
-    doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-ES')}`, 14, 48);
+      doc.setFontSize(22);
+      doc.setTextColor(40, 58, 90); // Dark Blue
+      doc.text(clinicName, 105, 20, { align: 'center' });
 
-    doc.setLineWidth(0.5);
-    doc.line(14, 55, 196, 55);
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(`Folio de Cita: ${appointment.folio}`, 14, 40);
+      doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-ES')}`, 14, 48);
 
-    doc.setFontSize(16);
-    doc.setTextColor(40, 58, 90);
-    doc.text("Detalles de la Cita", 14, 65);
+      doc.setLineWidth(0.5);
+      doc.line(14, 55, 196, 55);
 
-    doc.setFontSize(11);
-    doc.setTextColor(50);
-    let yPos = 75;
-    const addDetail = (label, value) => {
-      doc.setFont(undefined, 'bold');
-      doc.text(label, 14, yPos);
-      doc.setFont(undefined, 'normal');
-      doc.text(value, 60, yPos);
-      yPos += 8;
-    };
+      doc.setFontSize(16);
+      doc.setTextColor(40, 58, 90);
+      doc.text("Detalles de la Cita", 14, 65);
 
-    addDetail("Paciente:", appointment.patientName);
-    addDetail("Email Paciente:", appointment.patientEmail);
-    addDetail("Profesional:", professional.name);
-    addDetail("Fecha:", new Date(appointment.date).toLocaleDateString('es-ES'));
-    addDetail("Hora:", appointment.time);
-    addDetail("Tipo de Consulta:", appointment.type);
-    addDetail("Costo:", `$${parseFloat(appointment.cost || 0).toFixed(2)} MXN`);
-    addDetail("Estado de Pago:", getStatusLabel(appointment.paymentStatus, 'payment'));
-    
-    if(appointment.notes) {
-        yPos += 4;
+      doc.setFontSize(11);
+      doc.setTextColor(50);
+      let yPos = 75;
+      const addDetail = (label, value) => {
         doc.setFont(undefined, 'bold');
-        doc.text("Notas:", 14, yPos);
-        yPos += 8;
+        doc.text(label, 14, yPos);
         doc.setFont(undefined, 'normal');
-        const notesLines = doc.splitTextToSize(appointment.notes, 180);
-        doc.text(notesLines, 14, yPos);
-        yPos += (notesLines.length * 6);
+        doc.text(value, 60, yPos);
+        yPos += 8;
+      };
+
+      addDetail("Paciente:", appointment.patientName);
+      addDetail("Email Paciente:", appointment.patientEmail);
+      addDetail("Profesional:", professional.name);
+      addDetail("Fecha:", new Date(appointment.date).toLocaleDateString('es-ES'));
+      addDetail("Hora:", appointment.time);
+      addDetail("Tipo de Consulta:", appointment.type);
+      addDetail("Costo:", `$${parseFloat(appointment.cost || 0).toFixed(2)} MXN`);
+      addDetail("Estado de Pago:", getStatusLabel(appointment.paymentStatus, 'payment'));
+      
+      if(appointment.notes) {
+          yPos += 4;
+          doc.setFont(undefined, 'bold');
+          doc.text("Notas:", 14, yPos);
+          yPos += 8;
+          doc.setFont(undefined, 'normal');
+          const notesLines = doc.splitTextToSize(appointment.notes, 180);
+          doc.text(notesLines, 14, yPos);
+          yPos += (notesLines.length * 6);
+      }
+
+      doc.line(14, yPos + 5, 196, yPos + 5);
+      yPos += 15;
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text("Gracias por su preferencia.", 105, yPos, { align: 'center' });
+      doc.text(`Contacto: (123) 456-7890 | info@${clinicName.toLowerCase().replace(/\s/g, '')}.com`, 105, yPos + 5, { align: 'center' });
+
+      doc.save(`cita_${appointment.folio}_${appointment.patientName.replace(/\s/g, '_')}.pdf`);
+      toast({ title: "Reporte PDF Generado", description: "El reporte de la cita para el paciente se ha descargado." });
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF: " + error.message,
+        variant: "destructive"
+      });
     }
-
-
-    doc.line(14, yPos + 5, 196, yPos + 5);
-    yPos += 15;
-    doc.setFontSize(10);
-    doc.setTextColor(150);
-    doc.text("Gracias por su preferencia.", 105, yPos, { align: 'center' });
-    doc.text(`Contacto: (123) 456-7890 | info@${clinicName.toLowerCase().replace(/\s/g, '')}.com`, 105, yPos + 5, { align: 'center' });
-
-
-    doc.save(`cita_${appointment.folio}_${appointment.patientName.replace(/\s/g, '_')}.pdf`);
-    toast({ title: "Reporte PDF Generado", description: "El reporte de la cita para el paciente se ha descargado." });
   };
 
   const sendPatientReportByEmail = (appointment) => {
@@ -213,6 +248,25 @@ const AppointmentManager = () => {
       });
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Citas</h1>
+            <p className="text-muted-foreground mt-1">Cargando citas...</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl shadow-lg p-12 text-center border border-border/50">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded mb-4"></div>
+            <div className="h-4 bg-muted rounded mb-2"></div>
+            <div className="h-4 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -364,7 +418,7 @@ const AppointmentManager = () => {
                          <Button size="sm" variant="outline" onClick={() => sendPatientReportByEmail(appointment)} title="Enviar PDF por Email">
                           <Send className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="destructiveOutline" onClick={() => handleDeleteAppointment(appointment.id)} title="Eliminar Cita">
+                        <Button size="sm" variant="outline" onClick={() => handleDeleteAppointment(appointment.id)} title="Eliminar Cita" className="text-destructive hover:text-destructive/90">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
