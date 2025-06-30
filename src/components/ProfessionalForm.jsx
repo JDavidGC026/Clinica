@@ -32,7 +32,21 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
 
   useEffect(() => {
     if (professional) {
-      setFormData(professional);
+      // Asegurarse de que schedule sea un objeto válido
+      const schedule = professional.schedule || {
+        monday: { start: '', end: '', available: false },
+        tuesday: { start: '', end: '', available: false },
+        wednesday: { start: '', end: '', available: false },
+        thursday: { start: '', end: '', available: false },
+        friday: { start: '', end: '', available: false },
+        saturday: { start: '', end: '', available: false },
+        sunday: { start: '', end: '', available: false }
+      };
+      
+      setFormData({
+        ...professional,
+        schedule: schedule
+      });
     }
   }, [professional]);
 
@@ -65,8 +79,8 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
         [day]: {
           ...prev.schedule[day],
           available,
-          start: available ? prev.schedule[day].start : '',
-          end: available ? prev.schedule[day].end : ''
+          start: available ? prev.schedule[day].start || '08:00' : '',
+          end: available ? prev.schedule[day].end || '16:00' : ''
         }
       }
     }));
@@ -182,7 +196,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                     <label className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={formData.schedule[day.key]?.available || false}
+                        checked={formData.schedule && formData.schedule[day.key]?.available || false}
                         onChange={(e) => handleAvailabilityChange(day.key, e.target.checked)}
                         className="mr-2"
                       />
@@ -190,18 +204,18 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                     </label>
                   </div>
                   
-                  {formData.schedule[day.key]?.available && (
+                  {formData.schedule && formData.schedule[day.key]?.available && (
                     <div className="flex items-center space-x-2">
                       <input
                         type="time"
-                        value={formData.schedule[day.key].start}
+                        value={formData.schedule[day.key].start || ''}
                         onChange={(e) => handleScheduleChange(day.key, 'start', e.target.value)}
                         className="px-2 py-1 border border-input rounded text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       />
                       <span className="text-muted-foreground">a</span>
                       <input
                         type="time"
-                        value={formData.schedule[day.key].end}
+                        value={formData.schedule[day.key].end || ''}
                         onChange={(e) => handleScheduleChange(day.key, 'end', e.target.value)}
                         className="px-2 py-1 border border-input rounded text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       />

@@ -62,7 +62,7 @@ const ProfessionalManager = () => {
     if (searchTerm) {
       filtered = filtered.filter(prof =>
         prof.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (disciplines.find(d => d.id === prof.disciplineId)?.name.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (disciplines.find(d => d.id === prof.discipline_id)?.name.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         prof.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -71,7 +71,13 @@ const ProfessionalManager = () => {
 
   const handleAddProfessional = async (data) => {
     try {
-      const newProfessional = await apiService.createProfessional(data);
+      // Asegurarse de que disciplineId se mapee a discipline_id si es necesario
+      const professionalData = {
+        ...data,
+        discipline_id: data.disciplineId || data.discipline_id
+      };
+      
+      const newProfessional = await apiService.createProfessional(professionalData);
       setProfessionals(prev => [...prev, newProfessional]);
       setShowForm(false);
       toast({ 
@@ -90,7 +96,13 @@ const ProfessionalManager = () => {
 
   const handleEditProfessional = async (data) => {
     try {
-      const updatedProfessional = await apiService.updateProfessional(editingProfessional.id, data);
+      // Asegurarse de que disciplineId se mapee a discipline_id si es necesario
+      const professionalData = {
+        ...data,
+        discipline_id: data.disciplineId || data.discipline_id
+      };
+      
+      const updatedProfessional = await apiService.updateProfessional(editingProfessional.id, professionalData);
       setProfessionals(prev => prev.map(p => 
         p.id === editingProfessional.id ? updatedProfessional : p
       ));
@@ -131,13 +143,21 @@ const ProfessionalManager = () => {
   const getAvailableDays = (schedule) => {
     if (!schedule) return 'No disponible';
     
-    const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    
-    return dayKeys
-      .filter(day => schedule[day]?.available)
-      .map(day => days[dayKeys.indexOf(day)])
-      .join(', ') || 'No disponible';
+    try {
+      // Si schedule es un string JSON, parsearlo
+      const scheduleObj = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      
+      const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      return dayKeys
+        .filter(day => scheduleObj[day]?.available)
+        .map(day => days[dayKeys.indexOf(day)])
+        .join(', ') || 'No disponible';
+    } catch (e) {
+      console.error('Error procesando horario:', e);
+      return 'Error en formato';
+    }
   };
 
   const getDisciplineName = (disciplineId) => {
@@ -197,55 +217,68 @@ const ProfessionalManager = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredProfessionals.map((professional) => (
-          <motion.div
-            key={professional.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-xl shadow-lg overflow-hidden card-hover border border-border/50"
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4 gap-4">
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent-alt rounded-full flex items-center justify-center shrink-0">
-                    <User className="w-6 h-6 text-white" />
+        {filteredProfessionals.map((professional) => {
+          // Asegurarse de que disciplineId esté correctamente mapeado
+          const disciplineId = professional.disciplineId || professional.discipline_id;
+          
+          return (
+            <motion.div
+              key={professional.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-card rounded-xl shadow-lg overflow-hidden card-hover border border-border/50"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4 gap-4">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent-alt rounded-full flex items-center justify-center shrink-0">
+                      <User className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-card-foreground truncate">{professional.name}</h3>
+                      <p className="text-sm text-muted-foreground truncate flex items-center">
+                        <Briefcase className="w-3 h-3 mr-1.5 text-muted-foreground shrink-0" />
+                        {getDisciplineName(disciplineId)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold text-card-foreground truncate">{professional.name}</h3>
-                    <p className="text-sm text-muted-foreground truncate flex items-center">
-                      <Briefcase className="w-3 h-3 mr-1.5 text-muted-foreground shrink-0" />
-                      {getDisciplineName(professional.disciplineId)}
-                    </p>
+                  <div className="flex space-x-1">
+                    <Button size="sm" variant="outline" onClick={() => { 
+                      // Asegurarse de que disciplineId esté correctamente mapeado para el formulario
+                      const profToEdit = {
+                        ...professional,
+                        disciplineId: disciplineId
+                      };
+                      setEditingProfessional(profToEdit); 
+                      setShowForm(true); 
+                    }}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDeleteProfessional(professional.id)} className="text-destructive hover:text-destructive/90">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex space-x-1">
-                  <Button size="sm" variant="outline" onClick={() => { setEditingProfessional(professional); setShowForm(true); }}>
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDeleteProfessional(professional.id)} className="text-destructive hover:text-destructive/90">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center text-muted-foreground truncate">
-                  <Mail className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
-                  {professional.email}
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center text-muted-foreground truncate">
+                    <Mail className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                    {professional.email}
+                  </div>
+                  <div className="flex items-center text-muted-foreground">
+                    <Phone className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                    {professional.phone}
+                  </div>
                 </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Phone className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
-                  {professional.phone}
-                </div>
-              </div>
 
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-1">Días disponibles:</p>
-                <p className="text-sm text-card-foreground truncate">{getAvailableDays(professional.schedule)}</p>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Días disponibles:</p>
+                  <p className="text-sm text-card-foreground truncate">{getAvailableDays(professional.schedule)}</p>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
 
       {filteredProfessionals.length === 0 && !loading && (

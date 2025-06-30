@@ -117,6 +117,13 @@ class ApiService {
   }
 
   async put(endpoint, data) {
+    // Corregir el formato de la URL para evitar el problema con .php
+    if (endpoint.includes('?')) {
+      const [base, params] = endpoint.split('?');
+      endpoint = base.endsWith('.php') ? base : `${base}.php`;
+      endpoint = `${endpoint}?${params}`;
+    }
+    
     return this.request(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data)
