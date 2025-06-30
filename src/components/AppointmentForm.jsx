@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Calendar, Clock, User, Mail, Phone, Briefcase, DollarSign, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import apiService from '@/services/ApiService';
+import { toast } from '@/components/ui/use-toast';
 
 const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -22,16 +24,34 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
 
   const [professionals, setProfessionals] = useState([]);
   const [disciplines, setDisciplines] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedProfessionals = localStorage.getItem('clinic_professionals');
-    if (savedProfessionals) {
-      setProfessionals(JSON.parse(savedProfessionals));
-    }
-    const savedDisciplines = localStorage.getItem('clinic_disciplines');
-    if (savedDisciplines) {
-      setDisciplines(JSON.parse(savedDisciplines));
-    }
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [professionalsData, disciplinesData] = await Promise.all([
+          apiService.getProfessionals(),
+          apiService.getDisciplines()
+        ]);
+        
+        setProfessionals(professionalsData);
+        setDisciplines(disciplinesData);
+      } catch (error) {
+        console.error('Error cargando datos para el formulario:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los profesionales o disciplinas.",
+          variant: "destructive"
+        });
+        setProfessionals([]);
+        setDisciplines([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
 
     if (appointment) {
       // Corregir el formato de fecha para evitar problemas de zona horaria
@@ -128,6 +148,33 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
     return `${year}-${month}-${day}`;
   };
 
+  if (loading && !appointment) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-xl shadow-2xl w-full max-w-3xl p-6 border border-border"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-card-foreground">
+              Cargando formulario...
+            </h2>
+            <Button variant="ghost" size="sm" onClick={onCancel}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-muted rounded"></div>
+            <div className="h-8 bg-muted rounded"></div>
+            <div className="h-8 bg-muted rounded"></div>
+            <div className="h-8 bg-muted rounded"></div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <motion.div
@@ -175,10 +222,18 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </h3>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Profesional *</label>
-                <select name="professionalId" value={formData.professionalId} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required>
+                <select 
+                  name="professionalId" 
+                  value={formData.professionalId} 
+                  onChange={handleChange} 
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" 
+                  required
+                >
                   <option value="">Seleccionar profesional</option>
                   {professionals.map(prof => (
-                    <option key={prof.id} value={prof.id}>{prof.name} - {getDisciplineName(prof.disciplineId)}</option>
+                    <option key={prof.id} value={prof.id}>
+                      {prof.name} - {getDisciplineName(prof.disciplineId || prof.discipline_id)}
+                    </option>
                   ))}
                 </select>
               </div>

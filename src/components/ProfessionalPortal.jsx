@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, User, Calendar, FileText, Edit2, PlusCircle, Download, ChevronLeft, Eye } from 'lucide-react';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import apiService from '@/services/ApiService';
 
 const ProfessionalPortal = ({ currentUser }) => {
   const [patients, setPatients] = useState([]);
@@ -21,6 +21,8 @@ const ProfessionalPortal = ({ currentUser }) => {
   const [clinicName, setClinicName] = useState("Grupo Médico Delux");
   const [professionalDetails, setProfessionalDetails] = useState(null);
   const [clinicLogo, setClinicLogo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filteredPatients, setFilteredPatients] = useState([]);
 
   useEffect(() => {
     const storedClinicName = localStorage.getItem('clinic_name');
@@ -32,53 +34,103 @@ const ProfessionalPortal = ({ currentUser }) => {
       setClinicLogo(storedLogo);
     }
 
-    const allProfessionals = JSON.parse(localStorage.getItem('clinic_professionals') || '[]');
-    const currentProfDetails = currentUser && currentUser.id 
-      ? allProfessionals.find(p => p.id.toString() === currentUser.id.toString() || p.name === currentUser.name)
-      : allProfessionals.find(p => p.name === currentUser?.name);
-    setProfessionalDetails(currentProfDetails);
-    
-    const loadedAppointments = JSON.parse(localStorage.getItem('clinic_appointments') || '[]');
-    setAllAppointments(loadedAppointments);
-
-    const professionalAppointments = loadedAppointments.filter(
-      (apt) => 
-        (apt.professionalId && currentUser && currentUser.id && apt.professionalId.toString() === currentUser.id.toString()) || 
-        (apt.professionalName && currentUser && apt.professionalName === currentUser.name)
-    );
-        
-    const allPatientsData = JSON.parse(localStorage.getItem('clinic_patients') || '[]');
-    
-    const uniquePatients = [];
-    const seenPatientIdentifiers = new Set();
-
-    professionalAppointments.forEach(apt => {
-        let patientToAdd = null;
-        if (apt.patientId) {
-            patientToAdd = allPatientsData.find(p => p.id && p.id.toString() === apt.patientId.toString());
-        }
-        if (!patientToAdd && apt.patientName) {
-            patientToAdd = allPatientsData.find(p => p.name === apt.patientName);
-        }
-
-        if (!patientToAdd && apt.patientName) {
-             patientToAdd = {
-                id: `temp-${apt.patientName.replace(/\s+/g, '-')}`,
-                name: apt.patientName,
-                email: apt.patientEmail,
-                phone: apt.patientPhone,
-                isPlaceholder: true
-            };
-        }
-
-        const patientIdentifier = patientToAdd?.id || patientToAdd?.name;
-        if (patientToAdd && patientIdentifier && !seenPatientIdentifiers.has(patientIdentifier)) {
-            uniquePatients.push(patientToAdd);
-            seenPatientIdentifiers.add(patientIdentifier);
-        }
-    });
-    setPatients(uniquePatients);
+    loadData();
   }, [currentUser]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = patients.filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPatients(filtered);
+    } else {
+      setFilteredPatients(patients);
+    }
+  }, [patients, searchTerm]);
+
+  const loadData = async () => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Cargar profesionales para encontrar el actual
+      const allProfessionals = await apiService.getProfessionals();
+      console.log("Profesionales cargados:", allProfessionals);
+      
+      // Buscar el profesional actual por ID o nombre
+      const currentProfDetails = currentUser && currentUser.id 
+        ? allProfessionals.find(p => p.id.toString() === currentUser.id.toString() || p.name === currentUser.name)
+        : allProfessionals.find(p => p.name === currentUser?.name);
+      
+      console.log("Profesional actual:", currentProfDetails);
+      setProfessionalDetails(currentProfDetails);
+      
+      // Cargar citas
+      const loadedAppointments = await apiService.getAppointments();
+      console.log("Citas cargadas:", loadedAppointments);
+      setAllAppointments(loadedAppointments);
+
+      // Filtrar citas del profesional actual
+      const professionalAppointments = loadedAppointments.filter(
+        (apt) => 
+          (apt.professionalId && currentUser && currentUser.id && apt.professionalId.toString() === currentUser.id.toString()) || 
+          (apt.professionalName && currentUser && apt.professionalName === currentUser.name)
+      );
+      
+      console.log("Citas del profesional:", professionalAppointments);
+      
+      // Cargar pacientes
+      const allPatientsData = await apiService.getPatients();
+      console.log("Pacientes cargados:", allPatientsData);
+      
+      // Crear lista de pacientes únicos
+      const uniquePatients = [];
+      const seenPatientIdentifiers = new Set();
+
+      professionalAppointments.forEach(apt => {
+          let patientToAdd = null;
+          if (apt.patientId) {
+              patientToAdd = allPatientsData.find(p => p.id && p.id.toString() === apt.patientId.toString());
+          }
+          if (!patientToAdd && apt.patientName) {
+              patientToAdd = allPatientsData.find(p => p.name === apt.patientName);
+          }
+
+          if (!patientToAdd && apt.patientName) {
+               patientToAdd = {
+                  id: `temp-${apt.patientName.replace(/\s+/g, '-')}`,
+                  name: apt.patientName,
+                  email: apt.patientEmail,
+                  phone: apt.patientPhone,
+                  isPlaceholder: true
+              };
+          }
+
+          const patientIdentifier = patientToAdd?.id || patientToAdd?.name;
+          if (patientToAdd && patientIdentifier && !seenPatientIdentifiers.has(patientIdentifier)) {
+              uniquePatients.push(patientToAdd);
+              seenPatientIdentifiers.add(patientIdentifier);
+          }
+      });
+      
+      console.log("Pacientes únicos:", uniquePatients);
+      setPatients(uniquePatients);
+      setFilteredPatients(uniquePatients);
+    } catch (error) {
+      console.error("Error cargando datos del portal profesional:", error);
+      toast({
+        title: "Error de carga",
+        description: "No se pudieron cargar los datos. " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
@@ -263,19 +315,34 @@ const ProfessionalPortal = ({ currentUser }) => {
     setPrescriptionData({ ...prescriptionData, medications: updatedMedications });
   };
 
-
-  const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const getPatientAppointments = () => {
-    if (!selectedPatient || !currentUser || !currentUser.id) return [];
+    if (!selectedPatient || !currentUser) return [];
+    
     return allAppointments.filter(apt => 
-        ( (apt.patientId && apt.patientId.toString() === (selectedPatient.id && selectedPatient.id.toString())) || apt.patientName === selectedPatient.name ) &&
-        ( (apt.professionalId && apt.professionalId.toString() === currentUser.id.toString()) || apt.professionalName === currentUser.name )
+        ((apt.patientId && selectedPatient.id && apt.patientId.toString() === selectedPatient.id.toString()) || 
+         apt.patientName === selectedPatient.name) &&
+        ((apt.professionalId && currentUser.id && apt.professionalId.toString() === currentUser.id.toString()) || 
+         apt.professionalName === currentUser.name)
     ).sort((a,b) => new Date(b.date) - new Date(a.date));
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Portal del Profesional</h1>
+          <p className="text-muted-foreground mt-1">Cargando datos...</p>
+        </div>
+        <div className="bg-card rounded-xl shadow-lg p-12 text-center border border-border/50">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded mb-4 mx-auto w-1/3"></div>
+            <div className="h-4 bg-muted rounded mb-2 mx-auto w-1/2"></div>
+            <div className="h-4 bg-muted rounded mx-auto w-1/4"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedPatient) {
     return (
