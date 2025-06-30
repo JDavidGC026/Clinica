@@ -57,7 +57,7 @@ try {
         case 'POST':
             $data = getRequestData();
             
-            $requiredFields = ['name', 'email', 'phone', 'disciplineId', 'license', 'experience', 'schedule'];
+            $requiredFields = ['name', 'email', 'phone', 'disciplineId', 'schedule'];
             foreach ($requiredFields as $field) {
                 if (!isset($data[$field])) {
                     logApiActivity('professionals', 'POST', 400, "Missing required field: $field");
@@ -67,8 +67,8 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO professionals 
-                (name, email, phone, discipline_id, license, experience, schedule) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (name, email, phone, discipline_id, schedule) 
+                VALUES (?, ?, ?, ?, ?)
             ");
             
             $stmt->execute([
@@ -76,8 +76,6 @@ try {
                 $data['email'],
                 $data['phone'],
                 $data['disciplineId'],
-                $data['license'],
-                $data['experience'],
                 json_encode($data['schedule'])
             ]);
             
@@ -110,8 +108,7 @@ try {
             
             $stmt = $pdo->prepare("
                 UPDATE professionals 
-                SET name = ?, email = ?, phone = ?, discipline_id = ?, 
-                    license = ?, experience = ?, schedule = ?
+                SET name = ?, email = ?, phone = ?, discipline_id = ?, schedule = ?
                 WHERE id = ?
             ");
             
@@ -120,8 +117,6 @@ try {
                 $data['email'],
                 $data['phone'],
                 $data['disciplineId'],
-                $data['license'],
-                $data['experience'],
                 json_encode($data['schedule']),
                 $professionalId
             ]);
