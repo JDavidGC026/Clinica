@@ -61,25 +61,33 @@ const ProfessionalPortal = ({ currentUser }) => {
       const allProfessionals = await apiService.getProfessionals();
       console.log("Profesionales cargados:", allProfessionals);
       
-      // Buscar el profesional actual
+      // Buscar el profesional actual con múltiples criterios
       let currentProfDetails = null;
       
       if (currentUser.type === 'professional') {
-        // Si es login como profesional, usar su ID directamente
+        // Si es login como profesional, buscar por email o ID
         currentProfDetails = allProfessionals.find(p => 
-          p.id.toString() === currentUser.id.toString() || 
-          p.email === currentUser.email
+          p.email === currentUser.email || 
+          p.id.toString() === currentUser.id.toString()
         );
       } else {
-        // Si es usuario normal, buscar por nombre
-        currentProfDetails = allProfessionals.find(p => p.name === currentUser.name);
+        // Si es usuario normal, buscar por nombre o email
+        currentProfDetails = allProfessionals.find(p => 
+          p.name === currentUser.name || 
+          p.email === currentUser.email
+        );
       }
       
-      console.log("Profesional actual:", currentProfDetails);
+      console.log("Profesional actual encontrado:", currentProfDetails);
       setProfessionalDetails(currentProfDetails);
       
       if (!currentProfDetails) {
         console.warn("No se encontró el profesional actual");
+        toast({
+          title: "Información",
+          description: "No se encontró información del profesional. Contacta al administrador.",
+          variant: "default"
+        });
         setLoading(false);
         return;
       }
@@ -89,13 +97,24 @@ const ProfessionalPortal = ({ currentUser }) => {
       console.log("Citas cargadas:", loadedAppointments);
       setAllAppointments(loadedAppointments);
 
-      // Filtrar citas del profesional actual
+      // Filtrar citas del profesional actual con múltiples criterios
       const professionalAppointments = loadedAppointments.filter(
         (apt) => {
-          const matchById = apt.professionalId && 
-            apt.professionalId.toString() === currentProfDetails.id.toString();
-          const matchByName = apt.professionalName === currentProfDetails.name;
-          return matchById || matchByName;
+          // Buscar por ID del profesional
+          const matchById = apt.professional_id && 
+            apt.professional_id.toString() === currentProfDetails.id.toString();
+          
+          // Buscar por nombre del profesional (exacto y parcial)
+          const matchByName = apt.professional_name && (
+            apt.professional_name === currentProfDetails.name ||
+            apt.professional_name.includes(currentProfDetails.name.split(' ')[0]) ||
+            currentProfDetails.name.includes(apt.professional_name.split(' ')[0])
+          );
+          
+          // Buscar por email
+          const matchByEmail = apt.professional_email === currentProfDetails.email;
+          
+          return matchById || matchByName || matchByEmail;
         }
       );
       
@@ -113,22 +132,27 @@ const ProfessionalPortal = ({ currentUser }) => {
         let patientToAdd = null;
         
         // Buscar paciente por ID
-        if (apt.patientId) {
-          patientToAdd = allPatientsData.find(p => p.id && p.id.toString() === apt.patientId.toString());
+        if (apt.patient_id) {
+          patientToAdd = allPatientsData.find(p => p.id && p.id.toString() === apt.patient_id.toString());
         }
         
-        // Si no se encuentra por ID, buscar por nombre
-        if (!patientToAdd && apt.patientName) {
-          patientToAdd = allPatientsData.find(p => p.name === apt.patientName);
+        // Si no se encuentra por ID, buscar por email
+        if (!patientToAdd && apt.patient_email) {
+          patientToAdd = allPatientsData.find(p => p.email === apt.patient_email);
+        }
+        
+        // Si no se encuentra por email, buscar por nombre
+        if (!patientToAdd && apt.patient_name) {
+          patientToAdd = allPatientsData.find(p => p.name === apt.patient_name);
         }
 
         // Si aún no se encuentra, crear un paciente temporal
-        if (!patientToAdd && apt.patientName) {
+        if (!patientToAdd && apt.patient_name) {
           patientToAdd = {
-            id: `temp-${apt.patientName.replace(/\s+/g, '-')}`,
-            name: apt.patientName,
-            email: apt.patientEmail || 'No disponible',
-            phone: apt.patientPhone || 'No disponible',
+            id: `temp-${apt.patient_name.replace(/\s+/g, '-')}`,
+            name: apt.patient_name,
+            email: apt.patient_email || 'No disponible',
+            phone: apt.patient_phone || 'No disponible',
             isPlaceholder: true
           };
         }
@@ -340,10 +364,13 @@ const ProfessionalPortal = ({ currentUser }) => {
     if (!selectedPatient || !professionalDetails) return [];
     
     return allAppointments.filter(apt => {
-      const matchPatient = (apt.patientId && selectedPatient.id && apt.patientId.toString() === selectedPatient.id.toString()) || 
-                           apt.patientName === selectedPatient.name;
-      const matchProfessional = (apt.professionalId && apt.professionalId.toString() === professionalDetails.id.toString()) || 
-                               apt.professionalName === professionalDetails.name;
+      const matchPatient = (apt.patient_id && selectedPatient.id && apt.patient_id.toString() === selectedPatient.id.toString()) || 
+                           apt.patient_name === selectedPatient.name ||
+                           apt.patient_email === selectedPatient.email;
+      const matchProfessional = (apt.professional_id && apt.professional_id.toString() === professionalDetails.id.toString()) || 
+                               apt.professional_name === professionalDetails.name ||
+                               (apt.professional_name && professionalDetails.name && 
+                                apt.professional_name.includes(professionalDetails.name.split(' ')[0]));
       return matchPatient && matchProfessional;
     }).sort((a,b) => new Date(b.date) - new Date(a.date));
   };
@@ -374,6 +401,11 @@ const ProfessionalPortal = ({ currentUser }) => {
           <p className="text-muted-foreground mt-1">Bienvenido, {currentUser?.name || 'Profesional'}. Selecciona un paciente para ver sus detalles.</p>
           {currentUser?.type === 'professional' && (
             <p className="text-sm text-primary mt-1">Sesión iniciada como profesional</p>
+          )}
+          {professionalDetails && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {professionalDetails.name} - {professionalDetails.discipline_name || 'Especialidad no definida'}
+            </p>
           )}
         </div>
         <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
@@ -418,6 +450,11 @@ const ProfessionalPortal = ({ currentUser }) => {
             <User className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-card-foreground mb-2">No hay pacientes</h3>
             <p className="text-muted-foreground text-sm">No se encontraron pacientes asignados a este profesional.</p>
+            {professionalDetails && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Buscando citas para: {professionalDetails.name}
+              </p>
+            )}
           </div>
         )}
          <div className="mt-8 bg-card rounded-xl shadow-lg p-6 border border-border/50">
@@ -497,6 +534,7 @@ const ProfessionalPortal = ({ currentUser }) => {
                     <p><strong>Fecha:</strong> {new Date(apt.date).toLocaleDateString('es-ES')} - {apt.time}</p>
                     <p><strong>Tipo:</strong> {apt.type}</p>
                     <p><strong>Folio:</strong> {apt.folio}</p>
+                    <p><strong>Estado:</strong> {apt.status}</p>
                   </li>
                 ))}
               </ul>

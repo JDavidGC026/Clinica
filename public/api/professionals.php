@@ -41,6 +41,7 @@ try {
                     SELECT p.*, d.name as discipline_name 
                     FROM professionals p 
                     LEFT JOIN disciplines d ON p.discipline_id = d.id 
+                    WHERE p.status = 'activo'
                     ORDER BY p.name
                 ");
                 $professionals = $stmt->fetchAll();
@@ -74,13 +75,13 @@ try {
             $disciplineId = $data['disciplineId'] ?? $data['discipline_id'];
             
             // Generar contraseña por defecto si no se proporciona
-            $password = $data['password'] ?? 'password123';
+            $password = $data['password'] ?? 'password';
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
             
             $stmt = $pdo->prepare("
                 INSERT INTO professionals 
-                (name, email, phone, discipline_id, schedule, password_hash) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                (name, email, phone, discipline_id, schedule, password_hash, status) 
+                VALUES (?, ?, ?, ?, ?, ?, 'activo')
             ");
             
             $stmt->execute([
@@ -174,10 +175,11 @@ try {
                 sendError('Professional ID required', 400);
             }
             
-            $stmt = $pdo->prepare("DELETE FROM professionals WHERE id = ?");
+            // Cambiar status a inactivo en lugar de eliminar
+            $stmt = $pdo->prepare("UPDATE professionals SET status = 'inactivo' WHERE id = ?");
             $stmt->execute([$professionalId]);
             
-            logApiActivity('professionals', 'DELETE', 200, "Deleted professional: ID $professionalId");
+            logApiActivity('professionals', 'DELETE', 200, "Deactivated professional: ID $professionalId");
             sendResponse(['success' => true]);
             break;
             
