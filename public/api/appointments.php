@@ -40,6 +40,10 @@ try {
                     $appointment['professional_name'] = $appointment['professional_full_name'];
                 }
                 
+                // Asegurar valores por defecto
+                $appointment['payment_status'] = $appointment['payment_status'] ?: 'pendiente';
+                $appointment['status'] = $appointment['status'] ?: 'programada';
+                
                 logApiActivity('appointments', 'GET', 200, "Retrieved appointment: ID $appointmentId");
                 sendResponse($appointment);
             } else {
@@ -59,6 +63,7 @@ try {
                 
                 // Asegurar que los nombres estén disponibles para todas las citas
                 foreach ($appointments as &$appointment) {
+                    // Usar nombres de las tablas relacionadas si no están en la cita
                     if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
                         $appointment['patient_name'] = $appointment['patient_full_name'];
                     }
@@ -66,10 +71,10 @@ try {
                         $appointment['professional_name'] = $appointment['professional_full_name'];
                     }
                     
-                    // Asegurar que payment_status tenga un valor por defecto
-                    if (!$appointment['payment_status']) {
-                        $appointment['payment_status'] = 'pendiente';
-                    }
+                    // Asegurar valores por defecto
+                    $appointment['payment_status'] = $appointment['payment_status'] ?: 'pendiente';
+                    $appointment['status'] = $appointment['status'] ?: 'programada';
+                    $appointment['cost'] = $appointment['cost'] ?: '0.00';
                 }
                 
                 logApiActivity('appointments', 'GET', 200, "Retrieved all appointments: " . count($appointments) . " records");
