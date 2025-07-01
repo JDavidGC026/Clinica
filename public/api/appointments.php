@@ -13,10 +13,15 @@ try {
         case 'GET':
             if ($appointmentId) {
                 $stmt = $pdo->prepare("
-                    SELECT a.*, p.name as patient_full_name, pr.name as professional_full_name
+                    SELECT a.*, 
+                           p.name as patient_full_name, 
+                           pr.name as professional_full_name,
+                           pr.discipline_id,
+                           d.name as discipline_name
                     FROM appointments a
                     LEFT JOIN patients p ON a.patient_id = p.id
                     LEFT JOIN professionals pr ON a.professional_id = pr.id
+                    LEFT JOIN disciplines d ON pr.discipline_id = d.id
                     WHERE a.id = ?
                 ");
                 $stmt->execute([$appointmentId]);
@@ -27,17 +32,46 @@ try {
                     sendError('Appointment not found', 404);
                 }
                 
+                // Asegurar que los nombres estén disponibles
+                if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
+                    $appointment['patient_name'] = $appointment['patient_full_name'];
+                }
+                if (!$appointment['professional_name'] && $appointment['professional_full_name']) {
+                    $appointment['professional_name'] = $appointment['professional_full_name'];
+                }
+                
                 logApiActivity('appointments', 'GET', 200, "Retrieved appointment: ID $appointmentId");
                 sendResponse($appointment);
             } else {
                 $stmt = $pdo->query("
-                    SELECT a.*, p.name as patient_full_name, pr.name as professional_full_name
+                    SELECT a.*, 
+                           p.name as patient_full_name, 
+                           pr.name as professional_full_name,
+                           pr.discipline_id,
+                           d.name as discipline_name
                     FROM appointments a
                     LEFT JOIN patients p ON a.patient_id = p.id
                     LEFT JOIN professionals pr ON a.professional_id = pr.id
+                    LEFT JOIN disciplines d ON pr.discipline_id = d.id
                     ORDER BY a.date DESC, a.time ASC
                 ");
                 $appointments = $stmt->fetchAll();
+                
+                // Asegurar que los nombres estén disponibles para todas las citas
+                foreach ($appointments as &$appointment) {
+                    if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
+                        $appointment['patient_name'] = $appointment['patient_full_name'];
+                    }
+                    if (!$appointment['professional_name'] && $appointment['professional_full_name']) {
+                        $appointment['professional_name'] = $appointment['professional_full_name'];
+                    }
+                    
+                    // Asegurar que payment_status tenga un valor por defecto
+                    if (!$appointment['payment_status']) {
+                        $appointment['payment_status'] = 'pendiente';
+                    }
+                }
+                
                 logApiActivity('appointments', 'GET', 200, "Retrieved all appointments: " . count($appointments) . " records");
                 sendResponse($appointments);
             }
@@ -63,6 +97,17 @@ try {
                 $patientId = $patient['id'];
             }
             
+            // Obtener nombre del profesional
+            $professionalName = null;
+            if ($data['professionalId']) {
+                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
+                $stmt->execute([$data['professionalId']]);
+                $professional = $stmt->fetch();
+                if ($professional) {
+                    $professionalName = $professional['name'];
+                }
+            }
+            
             $stmt = $pdo->prepare("
                 INSERT INTO appointments 
                 (patient_id, patient_name, patient_email, patient_phone, professional_id, 
@@ -76,7 +121,7 @@ try {
                 $data['patientEmail'],
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
-                $data['professionalName'] ?? null,
+                $professionalName ?? $data['professionalName'] ?? null,
                 $data['date'],
                 $data['time'],
                 $data['type'],
@@ -90,7 +135,9 @@ try {
             $appointmentId = $pdo->lastInsertId();
             
             $stmt = $pdo->prepare("
-                SELECT a.*, p.name as patient_full_name, pr.name as professional_full_name
+                SELECT a.*, 
+                       p.name as patient_full_name, 
+                       pr.name as professional_full_name
                 FROM appointments a
                 LEFT JOIN patients p ON a.patient_id = p.id
                 LEFT JOIN professionals pr ON a.professional_id = pr.id
@@ -122,6 +169,17 @@ try {
                 }
             }
             
+            // Obtener nombre del profesional
+            $professionalName = null;
+            if (isset($data['professionalId']) && $data['professionalId']) {
+                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
+                $stmt->execute([$data['professionalId']]);
+                $professional = $stmt->fetch();
+                if ($professional) {
+                    $professionalName = $professional['name'];
+                }
+            }
+            
             $stmt = $pdo->prepare("
                 UPDATE appointments 
                 SET patient_id = ?, patient_name = ?, patient_email = ?, patient_phone = ?, 
@@ -136,7 +194,7 @@ try {
                 $data['patientEmail'],
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
-                $data['professionalName'] ?? null,
+                $professionalName ?? $data['professionalName'] ?? null,
                 $data['date'],
                 $data['time'],
                 $data['type'],
@@ -148,7 +206,9 @@ try {
             ]);
             
             $stmt = $pdo->prepare("
-                SELECT a.*, p.name as patient_full_name, pr.name as professional_full_name
+                SELECT a.*, 
+                       p.name as patient_full_name, 
+                       pr.name as professional_full_name
                 FROM appointments a
                 LEFT JOIN patients p ON a.patient_id = p.id
                 LEFT JOIN professionals pr ON a.professional_id = pr.id
