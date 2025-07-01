@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Calendar, Clock, User, Mail, Phone, Briefcase, DollarSign, FileText } from 'lucide-react';
+import { X, Calendar, Clock, User, Mail, Phone, Briefcase, DollarSign, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import apiService from '@/services/ApiService';
 import { toast } from '@/components/ui/use-toast';
 
 const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
+    patientId: '',
     patientName: '',
     patientEmail: '',
     patientPhone: '',
@@ -23,29 +38,37 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
   });
 
   const [professionals, setProfessionals] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [disciplines, setDisciplines] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [patientOpen, setPatientOpen] = useState(false);
+  const [professionalOpen, setProfessionalOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [professionalsData, disciplinesData] = await Promise.all([
+        const [professionalsData, disciplinesData, patientsData] = await Promise.all([
           apiService.getProfessionals(),
-          apiService.getDisciplines()
+          apiService.getDisciplines(),
+          apiService.getPatients()
         ]);
         
         setProfessionals(professionalsData);
         setDisciplines(disciplinesData);
+        setPatients(patientsData);
       } catch (error) {
         console.error('Error cargando datos para el formulario:', error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar los profesionales o disciplinas.",
+          description: "No se pudieron cargar los datos necesarios.",
           variant: "destructive"
         });
         setProfessionals([]);
         setDisciplines([]);
+        setPatients([]);
       } finally {
         setLoading(false);
       }
@@ -67,6 +90,22 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
         paymentStatus: appointment.paymentStatus || 'pendiente',
         folio: appointment.folio || ''
       });
+
+      // Buscar y establecer paciente seleccionado
+      if (appointment.patientId) {
+        const patient = patientsData?.find(p => p.id.toString() === appointment.patientId.toString());
+        if (patient) {
+          setSelectedPatient(patient);
+        }
+      }
+
+      // Buscar y establecer profesional seleccionado
+      if (appointment.professionalId) {
+        const professional = professionalsData?.find(p => p.id.toString() === appointment.professionalId.toString());
+        if (professional) {
+          setSelectedProfessional(professional);
+        }
+      }
     } else {
       setFormData(prev => ({ ...prev, folio: generateFolio() }));
     }
@@ -115,20 +154,50 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
       ...prev,
       [name]: value
     }));
+  };
 
-    if (name === 'professionalId') {
-      const selectedProfessional = professionals.find(p => p.id.toString() === value);
-      if (selectedProfessional) {
-        setFormData(prev => ({
-          ...prev,
-          professionalName: selectedProfessional.name
-        }));
-      }
-    }
+  const handlePatientSelect = (patient) => {
+    setSelectedPatient(patient);
+    setFormData(prev => ({
+      ...prev,
+      patientId: patient.id,
+      patientName: patient.name,
+      patientEmail: patient.email,
+      patientPhone: patient.phone || ''
+    }));
+    setPatientOpen(false);
+  };
+
+  const handleProfessionalSelect = (professional) => {
+    setSelectedProfessional(professional);
+    setFormData(prev => ({
+      ...prev,
+      professionalId: professional.id,
+      professionalName: professional.name
+    }));
+    setProfessionalOpen(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    if (!selectedPatient) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un paciente existente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedProfessional) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un profesional.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Asegurar que la fecha se mantenga correcta sin conversión de zona horaria
     const submitData = {
@@ -201,18 +270,69 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                 <User className="w-5 h-5 mr-2 text-primary" />
                 Información del Paciente
               </h3>
+              
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Nombre Completo *</label>
-                <input type="text" name="patientName" value={formData.patientName} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required />
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Seleccionar Paciente *</label>
+                <Popover open={patientOpen} onOpenChange={setPatientOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={patientOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedPatient
+                        ? selectedPatient.name
+                        : "Selecciona un paciente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar paciente..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontró ningún paciente.</CommandEmpty>
+                        <CommandGroup>
+                          {patients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.name}
+                              onSelect={() => handlePatientSelect(patient)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedPatient?.id === patient.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div>
+                                <div className="font-medium">{patient.name}</div>
+                                <div className="text-xs text-muted-foreground">{patient.email}</div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {patients.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No hay pacientes registrados. Primero registra pacientes en la sección "Pacientes".
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Email *</label>
-                <input type="email" name="patientEmail" value={formData.patientEmail} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Teléfono</label>
-                <input type="tel" name="patientPhone" value={formData.patientPhone} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" />
-              </div>
+
+              {selectedPatient && (
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Información del Paciente:</h4>
+                  <div className="text-xs space-y-1">
+                    <div><strong>Email:</strong> {selectedPatient.email}</div>
+                    <div><strong>Teléfono:</strong> {selectedPatient.phone || 'No disponible'}</div>
+                    {selectedPatient.age && <div><strong>Edad:</strong> {selectedPatient.age} años</div>}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -220,23 +340,56 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                 <Calendar className="w-5 h-5 mr-2 text-primary" />
                 Detalles de la Cita
               </h3>
+              
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Profesional *</label>
-                <select 
-                  name="professionalId" 
-                  value={formData.professionalId} 
-                  onChange={handleChange} 
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" 
-                  required
-                >
-                  <option value="">Seleccionar profesional</option>
-                  {professionals.map(prof => (
-                    <option key={prof.id} value={prof.id}>
-                      {prof.name} - {getDisciplineName(prof.disciplineId || prof.discipline_id)}
-                    </option>
-                  ))}
-                </select>
+                <Popover open={professionalOpen} onOpenChange={setProfessionalOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={professionalOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedProfessional
+                        ? selectedProfessional.name
+                        : "Selecciona un profesional..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar profesional..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontró ningún profesional.</CommandEmpty>
+                        <CommandGroup>
+                          {professionals.map((prof) => (
+                            <CommandItem
+                              key={prof.id}
+                              value={prof.name}
+                              onSelect={() => handleProfessionalSelect(prof)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedProfessional?.id === prof.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div>
+                                <div className="font-medium">{prof.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {getDisciplineName(prof.disciplineId || prof.discipline_id)}
+                                </div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Fecha *</label>
