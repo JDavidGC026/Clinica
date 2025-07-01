@@ -73,10 +73,14 @@ try {
             // Mapear disciplineId a discipline_id
             $disciplineId = $data['disciplineId'] ?? $data['discipline_id'];
             
+            // Generar contraseña por defecto si no se proporciona
+            $password = $data['password'] ?? 'password123';
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            
             $stmt = $pdo->prepare("
                 INSERT INTO professionals 
-                (name, email, phone, discipline_id, schedule) 
-                VALUES (?, ?, ?, ?, ?)
+                (name, email, phone, discipline_id, schedule, password_hash) 
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             
             $stmt->execute([
@@ -84,7 +88,8 @@ try {
                 $data['email'],
                 $data['phone'],
                 $disciplineId,
-                json_encode($data['schedule'])
+                json_encode($data['schedule']),
+                $passwordHash
             ]);
             
             $professionalId = $pdo->lastInsertId();
@@ -120,20 +125,28 @@ try {
             // Mapear disciplineId a discipline_id
             $disciplineId = $data['disciplineId'] ?? $data['discipline_id'];
             
-            $stmt = $pdo->prepare("
-                UPDATE professionals 
-                SET name = ?, email = ?, phone = ?, discipline_id = ?, schedule = ?
-                WHERE id = ?
-            ");
-            
-            $stmt->execute([
+            // Preparar campos para actualizar
+            $updateFields = [
                 $data['name'],
                 $data['email'],
                 $data['phone'],
                 $disciplineId,
-                json_encode($data['schedule']),
-                $professionalId
-            ]);
+                json_encode($data['schedule'])
+            ];
+            
+            $sql = "UPDATE professionals SET name = ?, email = ?, phone = ?, discipline_id = ?, schedule = ?";
+            
+            // Si se proporciona nueva contraseña, incluirla
+            if (isset($data['password']) && !empty($data['password'])) {
+                $sql .= ", password_hash = ?";
+                $updateFields[] = password_hash($data['password'], PASSWORD_DEFAULT);
+            }
+            
+            $sql .= " WHERE id = ?";
+            $updateFields[] = $professionalId;
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($updateFields);
             
             $stmt = $pdo->prepare("
                 SELECT p.*, d.name as discipline_name 

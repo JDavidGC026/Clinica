@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Mail, Phone, Clock, Briefcase } from 'lucide-react';
+import { X, User, Mail, Phone, Clock, Briefcase, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => {
@@ -9,6 +9,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
     email: '',
     phone: '',
     disciplineId: '',
+    password: '',
     schedule: {
       monday: { start: '', end: '', available: false },
       tuesday: { start: '', end: '', available: false },
@@ -45,6 +46,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
       
       setFormData({
         ...professional,
+        password: '', // No mostrar contraseña existente
         schedule: schedule
       });
     }
@@ -146,7 +148,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
                   Teléfono *
@@ -179,6 +181,26 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Contraseña {professional ? '(dejar vacío para mantener)' : '*'}
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  placeholder={professional ? "Nueva contraseña (opcional)" : "Contraseña para login"}
+                  required={!professional}
+                />
+                {!professional && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    El profesional podrá hacer login con su email y esta contraseña
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -224,6 +246,17 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+              <Key className="w-4 h-4 mr-2" />
+              Acceso al Sistema
+            </h4>
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              El profesional podrá iniciar sesión en el sistema usando su <strong>email</strong> como usuario y la contraseña configurada. 
+              Tendrá acceso al Portal Profesional donde podrá ver sus pacientes, gestionar notas clínicas y generar recetas.
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-border">

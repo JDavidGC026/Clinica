@@ -46,7 +46,7 @@ const LoginForm = ({ onLogin, isLoading }) => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-white text-sm font-medium mb-2">
-              Usuario
+              Usuario / Email
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -56,7 +56,7 @@ const LoginForm = ({ onLogin, isLoading }) => {
                 value={formData.username}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Ingresa tu usuario"
+                placeholder="Usuario o email del profesional"
                 required
               />
             </div>
@@ -99,11 +99,14 @@ const LoginForm = ({ onLogin, isLoading }) => {
         <div className="mt-6 p-4 bg-white/5 rounded-lg">
           <p className="text-xs text-purple-200 mb-2">Usuarios de prueba:</p>
           <div className="text-xs text-purple-300 space-y-1">
-            <div><strong>Usuario:</strong> admin</div>
-            <div><strong>Contraseña:</strong> password</div>
+            <div><strong>Admin:</strong> admin / password</div>
+            <div><strong>Gerente:</strong> gerente / password</div>
+            <div><strong>Profesional:</strong> profesional1 / password</div>
+            <div><strong>Recepción:</strong> recepcion / password</div>
             <hr className="my-2 border-purple-400/30" />
-            <div>También disponibles: gerente, profesional1, recepcion</div>
-            <div>Todos con contraseña: password</div>
+            <div className="text-green-300">
+              <strong>Profesionales:</strong> Usa tu email y contraseña asignada
+            </div>
           </div>
         </div>
       </div>
