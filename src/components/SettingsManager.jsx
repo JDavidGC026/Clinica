@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Mail, Key, FileText, Briefcase, Server, Eye, Send, TestTube, Edit } from 'lucide-react';
+import { Save, Mail, Key, FileText, Briefcase, Server, Eye, Send, TestTube, Edit, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -16,26 +16,24 @@ const CLINIC_NAME_DEFAULT = "Clínica Delux";
 
 const SettingsManager = () => {
   const [emailConfig, setEmailConfig] = useState({
-    smtpHost: 'smtp.gmail.com',
-    smtpPort: 587,
-    smtpUser: '',
-    smtpPassword: '',
-    fromEmail: '',
-    fromName: 'Clínica Delux'
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: '587',
+    smtp_user: '',
+    smtp_password: '',
+    from_email: '',
+    from_name: 'Clínica Delux',
+    smtp_secure: 'tls',
+    smtp_auth: '1'
   });
   const [clinicName, setClinicName] = useState(CLINIC_NAME_DEFAULT);
   const [clinicAddress, setClinicAddress] = useState('');
   const [clinicPhone, setClinicPhone] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [isTesting, setIsTesting] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [isInitializingDB, setIsInitializingDB] = useState(false);
 
   useEffect(() => {
-    // Cargar configuración de email
-    const savedConfig = EmailService.getConfig();
-    if (savedConfig) {
-      setEmailConfig(savedConfig);
-    }
-
     // Cargar información de la clínica
     const savedClinicName = localStorage.getItem('clinic_name');
     if (savedClinicName) {
@@ -59,7 +57,29 @@ const SettingsManager = () => {
       localStorage.setItem('clinic_phone', '+52 55 1234 5678');
       setClinicPhone('+52 55 1234 5678');
     }
+
+    // Cargar configuración de email desde BD
+    loadEmailConfigFromDatabase();
   }, []);
+
+  const loadEmailConfigFromDatabase = async () => {
+    try {
+      setIsLoadingConfig(true);
+      const config = await EmailService.getConfig();
+      if (config) {
+        setEmailConfig(config);
+      }
+    } catch (error) {
+      console.error('Error cargando configuración de email:', error);
+      toast({
+        title: "Información",
+        description: "No se pudo cargar la configuración desde la base de datos. Usando configuración local.",
+        variant: "default"
+      });
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  };
 
   const handleEmailConfigChange = (e) => {
     const { name, value } = e.target;
@@ -86,9 +106,6 @@ const SettingsManager = () => {
   const handleSave = (e) => {
     e.preventDefault();
     
-    // Guardar configuración de email
-    EmailService.updateConfig(emailConfig);
-    
     // Guardar información de la clínica
     localStorage.setItem('clinic_name', clinicName || CLINIC_NAME_DEFAULT);
     localStorage.setItem('clinic_address', clinicAddress);
@@ -96,8 +113,55 @@ const SettingsManager = () => {
     
     toast({
       title: '¡Configuración guardada!',
-      description: 'Tus ajustes se han guardado correctamente.',
+      description: 'La información de la clínica se ha guardado correctamente.',
     });
+  };
+
+  const handleSaveEmailConfig = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Guardar configuración de email en BD
+      await EmailService.updateConfig(emailConfig);
+      
+      toast({
+        title: '¡Configuración SMTP guardada!',
+        description: 'Las credenciales se han guardado de forma segura en la base de datos.',
+      });
+    } catch (error) {
+      console.error('Error guardando configuración SMTP:', error);
+      toast({
+        title: 'Error al guardar',
+        description: 'No se pudo guardar en la base de datos, pero se guardó localmente como respaldo.',
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleInitializeDatabase = async () => {
+    try {
+      setIsInitializingDB(true);
+      const result = await EmailService.initializeDatabase();
+      
+      if (result.success) {
+        toast({
+          title: '✅ Base de datos inicializada',
+          description: `Tablas creadas: ${result.tables_created.join(', ')}`,
+        });
+        
+        // Recargar configuración
+        await loadEmailConfigFromDatabase();
+      }
+    } catch (error) {
+      console.error('Error inicializando base de datos:', error);
+      toast({
+        title: 'Error de inicialización',
+        description: 'No se pudo inicializar la base de datos. Verifica la conexión.',
+        variant: "destructive"
+      });
+    } finally {
+      setIsInitializingDB(false);
+    }
   };
 
   const handleTestEmail = () => {
@@ -127,7 +191,7 @@ const SettingsManager = () => {
       return;
     }
 
-    if (!emailConfig.smtpUser || !emailConfig.smtpPassword) {
+    if (!emailConfig.smtp_user || !emailConfig.smtp_password) {
       toast({
         title: 'Configuración incompleta',
         description: 'Por favor configura las credenciales SMTP de Gmail primero.',
@@ -140,7 +204,7 @@ const SettingsManager = () => {
 
     try {
       // Guardar configuración antes de probar
-      EmailService.updateConfig(emailConfig);
+      await EmailService.updateConfig(emailConfig);
 
       const testData = {
         patient_name: 'Paciente de Prueba',
@@ -259,17 +323,55 @@ const SettingsManager = () => {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-6">
+          {/* Inicialización de BD */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-card rounded-xl shadow-lg p-6 border border-border/50"
           >
-            <form onSubmit={handleSave} className="space-y-6">
+            <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center">
+              <Database className="w-5 h-5 mr-2 text-primary" />
+              Configuración de Base de Datos
+            </h2>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4 border border-blue-200 dark:border-blue-800">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">🗄️ Almacenamiento Seguro</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                Las credenciales SMTP se almacenan de forma segura en la base de datos con encriptación. 
+                Si es la primera vez que usas el sistema, inicializa las tablas necesarias.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleInitializeDatabase}
+                  disabled={isInitializingDB}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  {isInitializingDB ? 'Inicializando...' : 'Inicializar BD'}
+                </Button>
+                <Button
+                  onClick={loadEmailConfigFromDatabase}
+                  disabled={isLoadingConfig}
+                  variant="outline"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingConfig ? 'animate-spin' : ''}`} />
+                  Recargar Config
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-xl shadow-lg p-6 border border-border/50"
+          >
+            <form onSubmit={handleSaveEmailConfig} className="space-y-6">
               {/* Configuración de Email SMTP */}
               <div>
                 <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center">
                   <Server className="w-5 h-5 mr-2 text-primary" />
                   Configuración de Gmail SMTP
+                  {isLoadingConfig && <RefreshCw className="w-4 h-4 ml-2 animate-spin text-primary" />}
                 </h2>
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4 border border-blue-200 dark:border-blue-800">
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📧 Configuración de Gmail</h4>
@@ -290,8 +392,8 @@ const SettingsManager = () => {
                     </label>
                     <input
                       type="email"
-                      name="smtpUser"
-                      value={emailConfig.smtpUser}
+                      name="smtp_user"
+                      value={emailConfig.smtp_user}
                       onChange={handleEmailConfigChange}
                       className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       placeholder="tu-email@gmail.com"
@@ -304,8 +406,8 @@ const SettingsManager = () => {
                     </label>
                     <input
                       type="password"
-                      name="smtpPassword"
-                      value={emailConfig.smtpPassword}
+                      name="smtp_password"
+                      value={emailConfig.smtp_password}
                       onChange={handleEmailConfigChange}
                       className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       placeholder="Contraseña de aplicación de Gmail"
@@ -318,8 +420,8 @@ const SettingsManager = () => {
                     </label>
                     <input
                       type="email"
-                      name="fromEmail"
-                      value={emailConfig.fromEmail}
+                      name="from_email"
+                      value={emailConfig.from_email}
                       onChange={handleEmailConfigChange}
                       className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       placeholder="noreply@clinicadelux.com"
@@ -332,12 +434,56 @@ const SettingsManager = () => {
                     </label>
                     <input
                       type="text"
-                      name="fromName"
-                      value={emailConfig.fromName}
+                      name="from_name"
+                      value={emailConfig.from_name}
                       onChange={handleEmailConfigChange}
                       className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                       placeholder="Clínica Delux"
                     />
+                  </div>
+                </div>
+
+                {/* Configuraciones avanzadas */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Servidor SMTP
+                    </label>
+                    <input
+                      type="text"
+                      name="smtp_host"
+                      value={emailConfig.smtp_host}
+                      onChange={handleEmailConfigChange}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                      placeholder="smtp.gmail.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Puerto
+                    </label>
+                    <input
+                      type="number"
+                      name="smtp_port"
+                      value={emailConfig.smtp_port}
+                      onChange={handleEmailConfigChange}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                      placeholder="587"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Encriptación
+                    </label>
+                    <select
+                      name="smtp_secure"
+                      value={emailConfig.smtp_secure}
+                      onChange={handleEmailConfigChange}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    >
+                      <option value="tls">TLS</option>
+                      <option value="ssl">SSL</option>
+                    </select>
                   </div>
                 </div>
 
@@ -358,7 +504,7 @@ const SettingsManager = () => {
                     <Button
                       type="button"
                       onClick={handleSendTestEmail}
-                      disabled={isTesting || !emailConfig.smtpUser || !emailConfig.smtpPassword}
+                      disabled={isTesting || !emailConfig.smtp_user || !emailConfig.smtp_password}
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Send className="w-4 h-4 mr-2" />
@@ -377,7 +523,7 @@ const SettingsManager = () => {
                   className="bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  Guardar Configuración SMTP
+                  Guardar en Base de Datos
                 </Button>
               </div>
             </form>

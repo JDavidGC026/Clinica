@@ -1,22 +1,60 @@
-// Servicio de email MEJORADO con soporte para templates personalizados
+// Servicio de email MEJORADO con soporte para base de datos
 class EmailService {
   constructor() {
-    this.config = this.loadConfig();
+    this.config = null;
+    this.loadConfigFromDatabase();
   }
 
-  loadConfig() {
+  // Cargar configuración desde la base de datos
+  async loadConfigFromDatabase() {
+    try {
+      const response = await fetch('./api/settings-correo.php', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const config = await response.json();
+        this.config = config;
+        
+        // También guardar en localStorage como respaldo
+        localStorage.setItem('clinic_email_config', JSON.stringify(config));
+        
+        return config;
+      } else {
+        // Fallback a localStorage si la BD no está disponible
+        return this.loadConfigFromLocalStorage();
+      }
+    } catch (error) {
+      console.error('Error cargando configuración de email desde BD:', error);
+      // Fallback a localStorage
+      return this.loadConfigFromLocalStorage();
+    }
+  }
+
+  // Fallback: cargar desde localStorage
+  loadConfigFromLocalStorage() {
     const saved = localStorage.getItem('clinic_email_config');
     if (saved) {
-      return JSON.parse(saved);
+      this.config = JSON.parse(saved);
+      return this.config;
     }
-    return {
-      smtpHost: 'smtp.gmail.com',
-      smtpPort: 587,
-      smtpUser: '',
-      smtpPassword: '',
-      fromEmail: '',
-      fromName: 'Clínica Delux'
+    
+    // Configuración por defecto
+    this.config = {
+      smtp_host: 'smtp.gmail.com',
+      smtp_port: '587',
+      smtp_user: '',
+      smtp_password: '',
+      from_email: '',
+      from_name: 'Clínica Delux',
+      smtp_secure: 'tls',
+      smtp_auth: '1'
     };
+    
+    return this.config;
   }
 
   // Cargar templates personalizados o usar por defecto
@@ -506,7 +544,7 @@ ${clinicName}
     return `¡Bienvenido/a a ${clinicName}!\n\nEstimado/a ${data.patient_name || 'Paciente'},\n\nNos complace tenerle como paciente.\n\n${clinicName}`;
   }
 
-  // Método principal para enviar email con PHPMailer
+  // Método principal para enviar email con configuración desde BD
   async sendEmail(type, recipientEmail, data = {}) {
     try {
       const template = this.getEmailTemplate(type, data);
@@ -514,8 +552,11 @@ ${clinicName}
         throw new Error(`Template de tipo '${type}' no encontrado`);
       }
 
+      // Cargar configuración desde BD
+      await this.loadConfigFromDatabase();
+
       // Verificar configuración SMTP
-      if (!this.config.smtpUser || !this.config.smtpPassword) {
+      if (!this.config || !this.config.smtp_user || !this.config.smtp_password) {
         throw new Error('Configuración SMTP incompleta. Configure las credenciales en Configuración.');
       }
 
@@ -525,10 +566,10 @@ ${clinicName}
         subject: template.subject,
         html: template.html,
         text: template.text,
-        smtp_user: this.config.smtpUser,
-        smtp_password: this.config.smtpPassword,
-        from_email: this.config.fromEmail || this.config.smtpUser,
-        from_name: this.config.fromName || 'Clínica Delux',
+        smtp_user: this.config.smtp_user,
+        smtp_password: this.config.smtp_password,
+        from_email: this.config.from_email || this.config.smtp_user,
+        from_name: this.config.from_name || 'Clínica Delux',
         type: type
       };
 
@@ -564,7 +605,7 @@ ${clinicName}
         return {
           success: true,
           messageId: result.messageId,
-          method: 'PHPMailer + Gmail SMTP'
+          method: 'PHPMailer + Gmail SMTP (BD Config)'
         };
       } else {
         throw new Error(result.error || 'Error desconocido al enviar email');
@@ -606,19 +647,72 @@ ${clinicName}
     return template;
   }
 
-  // Configurar SMTP (para Gmail)
-  updateConfig(newConfig) {
-    this.config = { ...this.config, ...newConfig };
-    localStorage.setItem('clinic_email_config', JSON.stringify(this.config));
+  // Configurar SMTP (ahora guarda en BD)
+  async updateConfig(newConfig) {
+    try {
+      const response = await fetch('./api/settings-correo.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newConfig)
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Actualizar configuración local
+        this.config = { ...this.config, ...newConfig };
+        
+        // También guardar en localStorage como respaldo
+        localStorage.setItem('clinic_email_config', JSON.stringify(this.config));
+        
+        return result;
+      } else {
+        throw new Error(result.error || 'Error guardando configuración');
+      }
+    } catch (error) {
+      console.error('Error guardando configuración SMTP:', error);
+      
+      // Fallback: guardar solo en localStorage
+      this.config = { ...this.config, ...newConfig };
+      localStorage.setItem('clinic_email_config', JSON.stringify(this.config));
+      
+      throw error;
+    }
   }
 
-  getConfig() {
+  async getConfig() {
+    if (!this.config) {
+      await this.loadConfigFromDatabase();
+    }
     return this.config;
   }
 
   // Verificar configuración
-  isConfigured() {
-    return !!(this.config.smtpUser && this.config.smtpPassword);
+  async isConfigured() {
+    if (!this.config) {
+      await this.loadConfigFromDatabase();
+    }
+    return !!(this.config && this.config.smtp_user && this.config.smtp_password);
+  }
+
+  // Inicializar base de datos
+  async initializeDatabase() {
+    try {
+      const response = await fetch('./api/init-database.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error inicializando base de datos:', error);
+      throw error;
+    }
   }
 }
 
