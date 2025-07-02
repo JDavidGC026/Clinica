@@ -1,4 +1,4 @@
-// Servicio de email MEJORADO con PHPMailer
+// Servicio de email MEJORADO con PHPMailer y templates para recordatorios
 class EmailService {
   constructor() {
     this.config = this.loadConfig();
@@ -31,10 +31,15 @@ class EmailService {
         html: this.generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone),
         text: this.generateConfirmationText(data, clinicName)
       },
-      'appointment-reminder': {
-        subject: `Recordatorio de Cita - ${clinicName}`,
-        html: this.generateReminderTemplate(data, clinicName, clinicAddress, clinicPhone),
-        text: this.generateReminderText(data, clinicName)
+      'appointment-reminder-patient': {
+        subject: `🔔 Recordatorio de Cita - ${clinicName}`,
+        html: this.generatePatientReminderTemplate(data, clinicName, clinicAddress, clinicPhone),
+        text: this.generatePatientReminderText(data, clinicName)
+      },
+      'appointment-reminder-professional': {
+        subject: `📋 Recordatorio de Cita - ${clinicName}`,
+        html: this.generateProfessionalReminderTemplate(data, clinicName, clinicAddress, clinicPhone),
+        text: this.generateProfessionalReminderText(data, clinicName)
       },
       'appointment-cancellation': {
         subject: `Cancelación de Cita - ${clinicName}`,
@@ -104,7 +109,7 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>${clinicName}</h1>
-            <h2>Confirmación de Cita</h2>
+            <h2>✅ Confirmación de Cita</h2>
           </div>
           <div class="content">
             <p>Estimado/a <strong>${data.patient_name || 'Paciente'}</strong>,</p>
@@ -157,6 +162,197 @@ class EmailService {
     `;
   }
 
+  // Template de recordatorio para PACIENTES
+  generatePatientReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Recordatorio de Cita</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #fffbeb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .appointment-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+          .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+          .detail-label { font-weight: bold; color: #6b7280; }
+          .detail-value { color: #111827; }
+          .reminder-box { background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #f59e0b; }
+          .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔔 ${clinicName}</h1>
+            <h2>Recordatorio de Cita</h2>
+          </div>
+          <div class="content">
+            <p>Estimado/a <strong>${data.patient_name || 'Paciente'}</strong>,</p>
+            
+            <div class="reminder-box">
+              <h3 style="margin-top: 0; color: #d97706; text-align: center;">⏰ Su cita está próxima</h3>
+              <p style="text-align: center; font-size: 16px; margin: 0;">
+                Le recordamos que tiene una cita programada para <strong>${appointmentDateTime || 'fecha por confirmar'}</strong>
+              </p>
+            </div>
+            
+            <div class="appointment-details">
+              <h3 style="margin-top: 0; color: #f59e0b;">Detalles de la Cita</h3>
+              <div class="detail-row">
+                <span class="detail-label">Fecha y Hora:</span>
+                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Profesional:</span>
+                <span class="detail-value">${data.professional_name || 'Por asignar'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Tipo de Consulta:</span>
+                <span class="detail-value">${data.appointment_type || 'Consulta General'}</span>
+              </div>
+              ${data.folio ? `
+              <div class="detail-row">
+                <span class="detail-label">Folio:</span>
+                <span class="detail-value">${data.folio}</span>
+              </div>
+              ` : ''}
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
+            </div>
+
+            <p><strong>📋 Recordatorios importantes:</strong></p>
+            <ul>
+              <li>✅ Llegue 15 minutos antes de su cita</li>
+              <li>🆔 Traiga un documento de identificación válido</li>
+              <li>💊 Si toma medicamentos, traiga la lista actualizada</li>
+              <li>📞 Si no puede asistir, llámenos con anticipación</li>
+            </ul>
+
+            <p>Esperamos verle pronto. Si tiene alguna pregunta, no dude en contactarnos.</p>
+          </div>
+          <div class="footer">
+            <p><strong>${clinicName}</strong></p>
+            <p>${clinicAddress}</p>
+            <p>Teléfono: ${clinicPhone}</p>
+            <p>Este es un mensaje automático, por favor no responda a este correo.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Template de recordatorio para PROFESIONALES
+  generateProfessionalReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Recordatorio de Cita - Profesional</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f0f9ff; padding: 30px; border-radius: 0 0 10px 10px; }
+          .appointment-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+          .patient-info { background: #e0f2fe; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+          .detail-label { font-weight: bold; color: #6b7280; }
+          .detail-value { color: #111827; }
+          .reminder-box { background: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #3b82f6; }
+          .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6b7280; font-size: 14px; }
+          .timezone-note { background: #fef3c7; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #92400e; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📋 ${clinicName}</h1>
+            <h2>Recordatorio de Cita</h2>
+          </div>
+          <div class="content">
+            <p>Estimado/a <strong>Dr(a). ${data.professional_name || 'Profesional'}</strong>,</p>
+            
+            <div class="reminder-box">
+              <h3 style="margin-top: 0; color: #1d4ed8; text-align: center;">📅 Próxima Cita Programada</h3>
+              <p style="text-align: center; font-size: 16px; margin: 0;">
+                Tiene una cita programada para <strong>${appointmentDateTime || 'fecha por confirmar'}</strong>
+              </p>
+            </div>
+            
+            <div class="appointment-details">
+              <h3 style="margin-top: 0; color: #3b82f6;">Detalles de la Cita</h3>
+              <div class="detail-row">
+                <span class="detail-label">Fecha y Hora:</span>
+                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Tipo de Consulta:</span>
+                <span class="detail-value">${data.appointment_type || 'Consulta General'}</span>
+              </div>
+              ${data.folio ? `
+              <div class="detail-row">
+                <span class="detail-label">Folio:</span>
+                <span class="detail-value">${data.folio}</span>
+              </div>
+              ` : ''}
+            </div>
+
+            <div class="patient-info">
+              <h3 style="margin-top: 0; color: #0369a1;">👤 Información del Paciente</h3>
+              <div class="detail-row">
+                <span class="detail-label">Nombre:</span>
+                <span class="detail-value">${data.patient_name || 'No disponible'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Email:</span>
+                <span class="detail-value">${data.patient_email || 'No disponible'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Teléfono:</span>
+                <span class="detail-value">${data.patient_phone || 'No disponible'}</span>
+              </div>
+            </div>
+
+            <div class="timezone-note">
+              <strong>⏰ Zona Horaria:</strong> Todas las horas están en horario de Ciudad de México (GMT-6).
+            </div>
+
+            <p><strong>📋 Recordatorios profesionales:</strong></p>
+            <ul>
+              <li>📁 Revise el historial del paciente antes de la cita</li>
+              <li>🩺 Prepare el material necesario para la consulta</li>
+              <li>📞 Si hay algún cambio, notifique al paciente con anticipación</li>
+              <li>📝 Tenga listos los formatos de notas clínicas</li>
+            </ul>
+
+            <p>Gracias por su dedicación profesional.</p>
+          </div>
+          <div class="footer">
+            <p><strong>${clinicName}</strong></p>
+            <p>${clinicAddress}</p>
+            <p>Teléfono: ${clinicPhone}</p>
+            <p>Este es un mensaje automático del sistema de gestión.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   // Template texto plano para confirmación
   generateConfirmationText(data, clinicName) {
     const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
@@ -185,19 +381,52 @@ ${clinicName}
     `;
   }
 
-  // Otros templates (recordatorio, cancelación, bienvenida)
-  generateReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
-    // Similar estructura pero con colores amarillos para recordatorio
-    return this.generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone)
-      .replace(/linear-gradient\(135deg, #d946ef, #a855f7\)/g, 'linear-gradient(135deg, #f59e0b, #d97706)')
-      .replace(/#d946ef/g, '#f59e0b')
-      .replace(/Confirmación de Cita/g, '🔔 Recordatorio de Cita');
+  // Templates texto plano para recordatorios
+  generatePatientReminderText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
+    return `
+🔔 ${clinicName} - Recordatorio de Cita
+
+Estimado/a ${data.patient_name || 'Paciente'},
+
+Le recordamos que tiene una cita programada para ${appointmentDateTime || 'fecha por confirmar'}.
+
+Detalles:
+- Profesional: ${data.professional_name || 'Por asignar'}
+- Tipo: ${data.appointment_type || 'Consulta General'}
+${data.folio ? `- Folio: ${data.folio}` : ''}
+
+Recordatorios:
+- Llegue 15 minutos antes
+- Traiga identificación
+- Si toma medicamentos, traiga la lista
+
+${clinicName}
+    `;
   }
 
-  generateReminderText(data, clinicName) {
-    return this.generateConfirmationText(data, clinicName).replace('Confirmación de Cita', 'Recordatorio de Cita');
+  generateProfessionalReminderText(data, clinicName) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
+    return `
+📋 ${clinicName} - Recordatorio de Cita
+
+Dr(a). ${data.professional_name || 'Profesional'},
+
+Tiene una cita programada para ${appointmentDateTime || 'fecha por confirmar'}.
+
+Paciente: ${data.patient_name || 'No disponible'}
+Tipo: ${data.appointment_type || 'Consulta General'}
+${data.folio ? `Folio: ${data.folio}` : ''}
+
+Prepare el material necesario para la consulta.
+
+${clinicName}
+    `;
   }
 
+  // Otros templates (cancelación, bienvenida)
   generateCancellationTemplate(data, clinicName, clinicAddress, clinicPhone) {
     // Similar estructura pero con colores rojos para cancelación
     return this.generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone)

@@ -96,14 +96,12 @@ try {
             
             // Obtener información completa del profesional
             $professionalName = null;
-            $professionalEmail = null;
             if ($data['professionalId']) {
-                $stmt = $pdo->prepare("SELECT name, email FROM professionals WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
                 $stmt->execute([$data['professionalId']]);
                 $professional = $stmt->fetch();
                 if ($professional) {
                     $professionalName = $professional['name'];
-                    $professionalEmail = $professional['email'];
                 }
             }
             
@@ -113,9 +111,9 @@ try {
             $stmt = $pdo->prepare("
                 INSERT INTO appointments 
                 (patient_id, patient_name, patient_email, patient_phone, professional_id, 
-                 professional_name, professional_email, date, time, type, notes, status, 
+                 professional_name, date, time, type, notes, status, 
                  payment_status, cost, folio) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $stmt->execute([
@@ -125,7 +123,6 @@ try {
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
                 $professionalName,
-                $professionalEmail,
                 $data['date'],
                 $data['time'],
                 $data['type'],
@@ -187,21 +184,19 @@ try {
             
             // Obtener información completa del profesional
             $professionalName = null;
-            $professionalEmail = null;
             if (isset($data['professionalId']) && $data['professionalId']) {
-                $stmt = $pdo->prepare("SELECT name, email FROM professionals WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
                 $stmt->execute([$data['professionalId']]);
                 $professional = $stmt->fetch();
                 if ($professional) {
                     $professionalName = $professional['name'];
-                    $professionalEmail = $professional['email'];
                 }
             }
             
             $stmt = $pdo->prepare("
                 UPDATE appointments 
                 SET patient_id = ?, patient_name = ?, patient_email = ?, patient_phone = ?, 
-                    professional_id = ?, professional_name = ?, professional_email = ?, 
+                    professional_id = ?, professional_name = ?, 
                     date = ?, time = ?, type = ?, notes = ?, status = ?, payment_status = ?, cost = ?
                 WHERE id = ?
             ");
@@ -213,7 +208,6 @@ try {
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
                 $professionalName,
-                $professionalEmail,
                 $data['date'],
                 $data['time'],
                 $data['type'],
@@ -318,7 +312,7 @@ function enrichAppointmentData($appointment) {
 
 function generateFolio() {
     $prefix = "CDX"; // Clínica Delux
-    $date = new Date();
+    $date = new DateTime();
     $year = $date->format('y');
     $month = $date->format('m');
     $day = $date->format('d');
