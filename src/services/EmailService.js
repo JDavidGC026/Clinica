@@ -1,4 +1,4 @@
-// Servicio de email MEJORADO con PHPMailer y templates para recordatorios
+// Servicio de email MEJORADO con soporte para templates personalizados
 class EmailService {
   constructor() {
     this.config = this.loadConfig();
@@ -19,12 +19,38 @@ class EmailService {
     };
   }
 
-  // Templates de correo internos
+  // Cargar templates personalizados o usar por defecto
+  loadCustomTemplates() {
+    const saved = localStorage.getItem('clinic_email_templates');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Error loading custom templates:', error);
+        return {};
+      }
+    }
+    return {};
+  }
+
+  // Templates de correo internos (ahora como fallback)
   getEmailTemplate(type, data = {}) {
     const clinicName = localStorage.getItem('clinic_name') || 'Clínica Delux';
     const clinicAddress = localStorage.getItem('clinic_address') || 'Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México';
     const clinicPhone = localStorage.getItem('clinic_phone') || '+52 55 1234 5678';
     
+    // Intentar cargar template personalizado primero
+    const customTemplates = this.loadCustomTemplates();
+    if (customTemplates[type]) {
+      const customTemplate = customTemplates[type];
+      return {
+        subject: this.processTemplate(customTemplate.subject, data, clinicName, clinicAddress, clinicPhone),
+        html: this.processTemplate(customTemplate.html, data, clinicName, clinicAddress, clinicPhone),
+        text: this.processTemplate(customTemplate.text, data, clinicName, clinicAddress, clinicPhone)
+      };
+    }
+
+    // Fallback a templates por defecto
     const templates = {
       'appointment-confirmation': {
         subject: `Confirmación de Cita - ${clinicName}`,
@@ -56,8 +82,37 @@ class EmailService {
     return templates[type] || null;
   }
 
+  // Procesar template con variables
+  processTemplate(template, data, clinicName, clinicAddress, clinicPhone) {
+    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    
+    const allData = {
+      ...data,
+      clinic_name: clinicName,
+      clinic_address: clinicAddress,
+      clinic_phone: clinicPhone,
+      appointment_date: appointmentDateTime || data.appointment_date || 'Por confirmar',
+      patient_name: data.patient_name || 'Paciente',
+      professional_name: data.professional_name || 'Por asignar',
+      appointment_type: data.appointment_type || 'Consulta General',
+      folio: data.folio || '',
+      patient_email: data.patient_email || 'No disponible',
+      patient_phone: data.patient_phone || 'No disponible'
+    };
+
+    let processed = template;
+    Object.keys(allData).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      processed = processed.replace(regex, allData[key] || '');
+    });
+    
+    return processed;
+  }
+
   // Formatear fecha y hora para Ciudad de México
   formatMexicoDateTime(dateString, timeString = null) {
+    if (!dateString) return '';
+    
     const date = new Date(dateString + (timeString ? `T${timeString}:00` : 'T00:00:00'));
     
     const options = {
@@ -81,7 +136,7 @@ class EmailService {
     return timeString ? `${formattedDate} a las ${formattedTime}` : formattedDate;
   }
 
-  // Template HTML para confirmación de cita
+  // Template HTML para confirmación de cita (fallback)
   generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone) {
     const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
     
