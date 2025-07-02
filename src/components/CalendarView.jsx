@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, Clock, Mail, Phone, Send, FileText, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/ApiService';
+import EmailService from '@/services/EmailService';
 
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -128,6 +129,78 @@ const CalendarView = () => {
     }
   };
 
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case 'programada': return 'border-l-blue-500 bg-blue-50';
+      case 'completada': return 'border-l-green-500 bg-green-50';
+      case 'cancelada': return 'border-l-red-500 bg-red-50';
+      case 'en-progreso': return 'border-l-yellow-500 bg-yellow-50';
+      default: return 'border-l-gray-500 bg-gray-50';
+    }
+  };
+
+  const getPaymentStatusColor = (status) => {
+    switch (status) {
+      case 'pagado': return 'text-green-600 bg-green-100';
+      case 'pendiente': return 'text-amber-600 bg-amber-100';
+      case 'cancelado_sin_costo': return 'text-gray-600 bg-gray-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getPaymentStatusLabel = (status) => {
+    switch (status) {
+      case 'pagado': return 'Pagado';
+      case 'pendiente': return 'Pendiente';
+      case 'cancelado_sin_costo': return 'Cancelado (S/C)';
+      default: return status || 'Pendiente';
+    }
+  };
+
+  const handleSendReminder = async (appointment) => {
+    if (!appointment.patient_email) {
+      toast({
+        title: "Error",
+        description: "No hay email registrado para este paciente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!EmailService.isConfigured()) {
+      toast({
+        title: "Configuración requerida",
+        description: "Configure las credenciales SMTP en Configuración primero.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const emailData = {
+        patient_name: appointment.patient_name,
+        professional_name: appointment.professional_name,
+        appointment_date: `${appointment.date} a las ${appointment.time}`,
+        appointment_type: appointment.type,
+        folio: appointment.folio
+      };
+
+      await EmailService.sendEmail('appointment-reminder-patient', appointment.patient_email, emailData);
+      
+      toast({
+        title: "Recordatorio enviado",
+        description: `Recordatorio enviado a ${appointment.patient_email}`,
+      });
+    } catch (error) {
+      console.error('Error enviando recordatorio:', error);
+      toast({
+        title: "Error al enviar recordatorio",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const daysOfMonth = getDaysInMonth(currentDate);
 
   if (loading) {
@@ -173,13 +246,6 @@ const CalendarView = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Calendario</h1>
           <p className="text-muted-foreground mt-1">Vista general de citas programadas</p>
         </div>
-        <Button
-          onClick={() => toast({ title: "🚧 Funcionalidad no implementada", description: "Crear citas desde el calendario aún no está disponible. Puedes hacerlo desde 'Gestión de Citas'."})}
-          className="w-full sm:w-auto button-primary-gradient"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Cita
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -216,7 +282,7 @@ const CalendarView = () => {
                         <div 
                           key={i} 
                           className={`w-1.5 h-1.5 rounded-full ${getStatusColor(apt.status)}`} 
-                          title={`${apt.patientName} - ${apt.time}`}
+                          title={`${apt.patient_name} - ${apt.time}`}
                         />
                       ))
                     ) : (
@@ -244,12 +310,82 @@ const CalendarView = () => {
               {dayAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No hay citas para este día.</p>
               ) : (
-                <div className="space-y-3 max-h-[40vh] lg:max-h-[60vh] overflow-y-auto pr-2">
+                <div className="space-y-4 max-h-[40vh] lg:max-h-[60vh] overflow-y-auto pr-2">
                   {dayAppointments.map(apt => (
-                    <div key={apt.id} className="p-3 bg-muted/30 rounded-lg border-l-4" style={{borderColor: getStatusColor(apt.status)}}>
-                      <p className="font-bold text-card-foreground text-sm">{apt.time}</p>
-                      <p className="text-sm text-card-foreground">{apt.patientName}</p>
-                      <p className="text-xs text-muted-foreground">{apt.professionalName || apt.psychologistName}</p>
+                    <div key={apt.id} className={`p-4 rounded-lg border-l-4 ${getStatusColorClass(apt.status)}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-bold text-card-foreground text-sm">{apt.time}</span>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getPaymentStatusColor(apt.payment_status)}`}>
+                          {getPaymentStatusLabel(apt.payment_status)}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-card-foreground">{apt.patient_name}</span>
+                        </div>
+                        
+                        {apt.patient_email && (
+                          <div className="flex items-center space-x-2">
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate">{apt.patient_email}</span>
+                          </div>
+                        )}
+                        
+                        {apt.patient_phone && (
+                          <div className="flex items-center space-x-2">
+                            <Phone className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">{apt.patient_phone}</span>
+                          </div>
+                        )}
+                        
+                        <div className="text-xs text-muted-foreground">
+                          <strong>Profesional:</strong> {apt.professional_name}
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground">
+                          <strong>Tipo:</strong> {apt.type}
+                        </div>
+                        
+                        {apt.folio && (
+                          <div className="text-xs text-muted-foreground">
+                            <strong>Folio:</strong> {apt.folio}
+                          </div>
+                        )}
+                        
+                        {apt.cost && parseFloat(apt.cost) > 0 && (
+                          <div className="flex items-center space-x-2">
+                            <DollarSign className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              ${parseFloat(apt.cost).toFixed(2)} MXN
+                            </span>
+                          </div>
+                        )}
+                        
+                        {apt.notes && (
+                          <div className="text-xs text-muted-foreground">
+                            <strong>Notas:</strong> {apt.notes}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {apt.patient_email && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSendReminder(apt)}
+                            className="w-full text-xs"
+                          >
+                            <Send className="w-3 h-3 mr-2" />
+                            Enviar Recordatorio
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
