@@ -3,6 +3,7 @@ require_once 'config.php';
 
 // Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    logApiActivity('phpmailer-send', $_SERVER['REQUEST_METHOD'], 405, "Method not allowed");
     sendError('Método no permitido', 405);
 }
 
@@ -12,124 +13,86 @@ $data = getRequestData();
 $required = ['to', 'subject', 'html', 'smtp_user', 'smtp_password'];
 foreach ($required as $field) {
     if (!isset($data[$field]) || empty($data[$field])) {
+        logApiActivity('phpmailer-send', 'POST', 400, "Missing required field: $field");
         sendError("Campo requerido faltante: $field", 400);
     }
 }
 
+// Verificar si PHPMailer está disponible
+$phpmailerPath = __DIR__ . '/../../vendor/autoload.php';
+if (!file_exists($phpmailerPath)) {
+    logApiActivity('phpmailer-send', 'POST', 500, "PHPMailer not installed");
+    sendError('PHPMailer no está instalado. Ejecuta: composer require phpmailer/phpmailer', 500);
+}
+
+require_once $phpmailerPath;
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
 try {
-    // Usar cURL para enviar via SMTP de Gmail
-    $result = sendEmailViaCurl($data);
+    $mail = new PHPMailer(true);
+
+    // Configuración del servidor SMTP
+    $mail->isSMTP();
+    $mail->Host       = 'smtp.gmail.com';
+    $mail->SMTPAuth   = true;
+    $mail->Username   = $data['smtp_user'];
+    $mail->Password   = $data['smtp_password'];
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = 587;
+    $mail->CharSet    = 'UTF-8';
+
+    // Configuración del remitente
+    $fromEmail = $data['from_email'] ?? $data['smtp_user'];
+    $fromName = $data['from_name'] ?? 'Clínica Delux';
+    $mail->setFrom($fromEmail, $fromName);
+
+    // Destinatario
+    $mail->addAddress($data['to']);
+
+    // Configuración del email
+    $mail->isHTML(true);
+    $mail->Subject = $data['subject'];
+    $mail->Body    = $data['html'];
     
-    if ($result['success']) {
-        // Guardar en historial
-        saveEmailHistory([
-            'type' => $data['type'] ?? 'manual',
-            'recipient' => $data['to'],
-            'subject' => $data['subject'],
-            'status' => 'enviado'
-        ]);
-        
-        sendResponse([
-            'success' => true,
-            'message' => 'Email enviado exitosamente via Gmail SMTP',
-            'messageId' => $result['messageId']
-        ]);
+    // Versión en texto plano (opcional)
+    if (isset($data['text'])) {
+        $mail->AltBody = $data['text'];
     } else {
-        saveEmailHistory([
-            'type' => $data['type'] ?? 'manual',
-            'recipient' => $data['to'],
-            'subject' => $data['subject'],
-            'status' => 'error'
-        ]);
-        
-        sendError($result['error'], 500);
+        $mail->AltBody = strip_tags($data['html']);
     }
+
+    // Enviar el email
+    $mail->send();
     
+    // Guardar en historial
+    saveEmailHistory([
+        'type' => $data['type'] ?? 'manual',
+        'recipient' => $data['to'],
+        'subject' => $data['subject'],
+        'status' => 'enviado'
+    ]);
+
+    logApiActivity('phpmailer-send', 'POST', 200, "Email sent successfully to: " . $data['to']);
+    sendResponse([
+        'success' => true,
+        'message' => 'Email enviado exitosamente con PHPMailer',
+        'messageId' => $mail->getLastMessageID()
+    ]);
+
 } catch (Exception $e) {
+    // Guardar error en historial
     saveEmailHistory([
         'type' => $data['type'] ?? 'manual',
         'recipient' => $data['to'],
         'subject' => $data['subject'],
         'status' => 'error'
     ]);
-    
+
+    logApiActivity('phpmailer-send', 'POST', 500, "PHPMailer Error: " . $e->getMessage());
     sendError('Error al enviar email: ' . $e->getMessage(), 500);
-}
-
-function sendEmailViaCurl($data) {
-    // Preparar el mensaje SMTP
-    $boundary = uniqid('boundary_');
-    $messageId = uniqid() . '@clinicadelux.com';
-    
-    $smtpMessage = buildSMTPMessage($data, $boundary, $messageId);
-    
-    // Configurar cURL para SMTP
-    $ch = curl_init();
-    
-    curl_setopt_array($ch, [
-        CURLOPT_URL => 'smtps://smtp.gmail.com:465',
-        CURLOPT_USE_SSL => CURLUSESSL_ALL,
-        CURLOPT_USERNAME => $data['smtp_user'],
-        CURLOPT_PASSWORD => $data['smtp_password'],
-        CURLOPT_MAIL_FROM => $data['from_email'] ?? $data['smtp_user'],
-        CURLOPT_MAIL_RCPT => [$data['to']],
-        CURLOPT_READDATA => $smtpMessage,
-        CURLOPT_UPLOAD => true,
-        CURLOPT_VERBOSE => false,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30
-    ]);
-    
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    
-    curl_close($ch);
-    
-    if ($result === false || !empty($error)) {
-        return [
-            'success' => false,
-            'error' => 'Error CURL: ' . ($error ?: 'Error desconocido')
-        ];
-    }
-    
-    return [
-        'success' => true,
-        'messageId' => $messageId,
-        'response' => $result
-    ];
-}
-
-function buildSMTPMessage($data, $boundary, $messageId) {
-    $fromEmail = $data['from_email'] ?? $data['smtp_user'];
-    $fromName = $data['from_name'] ?? 'Clínica Delux';
-    $date = date('r');
-    
-    $message = "Message-ID: <$messageId>\r\n";
-    $message .= "Date: $date\r\n";
-    $message .= "From: $fromName <$fromEmail>\r\n";
-    $message .= "To: {$data['to']}\r\n";
-    $message .= "Subject: {$data['subject']}\r\n";
-    $message .= "MIME-Version: 1.0\r\n";
-    $message .= "Content-Type: multipart/alternative; boundary=\"$boundary\"\r\n";
-    $message .= "X-Mailer: Clínica Delux System\r\n";
-    $message .= "X-Priority: 3\r\n\r\n";
-    
-    // Parte de texto plano
-    $message .= "--$boundary\r\n";
-    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-    $message .= strip_tags($data['html']) . "\r\n\r\n";
-    
-    // Parte HTML
-    $message .= "--$boundary\r\n";
-    $message .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-    $message .= $data['html'] . "\r\n\r\n";
-    
-    $message .= "--$boundary--\r\n";
-    
-    return $message;
 }
 
 function saveEmailHistory($emailData) {
@@ -148,8 +111,11 @@ function saveEmailHistory($emailData) {
             $emailData['status']
         ]);
         
+        logApiActivity('email-history', 'INSERT', 200, "Email history saved: " . $emailData['type'] . " to " . $emailData['recipient']);
+        
     } catch (Exception $e) {
         error_log('Error guardando historial de email: ' . $e->getMessage());
+        logApiActivity('email-history', 'INSERT', 500, "Failed to save email history: " . $e->getMessage());
     }
 }
 ?>

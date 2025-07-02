@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Calendar, Clock, User, Edit, Trash2, DollarSign, FileText, Send } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, Clock, User, Edit, Trash2, DollarSign, FileText, Send, Mail, Phone, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import AppointmentForm from '@/components/AppointmentForm';
 import apiService from '@/services/ApiService';
+import EmailService from '@/services/EmailService';
 import jsPDF from 'jspdf';
 
 const AppointmentManager = () => {
@@ -53,9 +54,10 @@ const AppointmentManager = () => {
 
     if (searchTerm) {
       filtered = filtered.filter(apt =>
-        apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (apt.professionalName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (apt.folio && apt.folio.toLowerCase().includes(searchTerm.toLowerCase()))
+        apt.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.professional_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.folio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.patient_email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -63,7 +65,7 @@ const AppointmentManager = () => {
       filtered = filtered.filter(apt => apt.status === statusFilter);
     }
     if (paymentStatusFilter !== 'all') {
-      filtered = filtered.filter(apt => apt.paymentStatus === paymentStatusFilter);
+      filtered = filtered.filter(apt => apt.payment_status === paymentStatusFilter);
     }
 
     setFilteredAppointments(filtered);
@@ -80,13 +82,32 @@ const AppointmentManager = () => {
         description: `La cita con folio ${newAppointment.folio} ha sido programada.`,
       });
 
-      // Simular envío de email de confirmación
-      setTimeout(() => {
-        toast({
-          title: "Notificación (simulada)",
-          description: `Email de confirmación enviado a ${appointmentData.patientEmail}`,
-        });
-      }, 1000);
+      // Enviar email de confirmación automáticamente
+      if (newAppointment.patient_email && EmailService.isConfigured()) {
+        try {
+          const emailData = {
+            patient_name: newAppointment.patient_name,
+            professional_name: newAppointment.professional_name,
+            appointment_date: `${newAppointment.date} a las ${newAppointment.time}`,
+            appointment_type: newAppointment.type,
+            folio: newAppointment.folio
+          };
+
+          await EmailService.sendEmail('appointment-confirmation', newAppointment.patient_email, emailData);
+          
+          toast({
+            title: "Email enviado",
+            description: `Confirmación enviada a ${newAppointment.patient_email}`,
+          });
+        } catch (emailError) {
+          console.error('Error enviando email:', emailError);
+          toast({
+            title: "Cita creada, email no enviado",
+            description: "La cita se creó pero no se pudo enviar el email de confirmación.",
+            variant: "destructive"
+          });
+        }
+      }
     } catch (error) {
       console.error('Error creando cita:', error);
       toast({
@@ -139,6 +160,50 @@ const AppointmentManager = () => {
     }
   };
 
+  const handleSendEmail = async (appointment, type = 'appointment-reminder') => {
+    if (!appointment.patient_email) {
+      toast({
+        title: "Error",
+        description: "No hay email registrado para este paciente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!EmailService.isConfigured()) {
+      toast({
+        title: "Configuración requerida",
+        description: "Configure las credenciales SMTP en Configuración primero.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const emailData = {
+        patient_name: appointment.patient_name,
+        professional_name: appointment.professional_name,
+        appointment_date: `${appointment.date} a las ${appointment.time}`,
+        appointment_type: appointment.type,
+        folio: appointment.folio
+      };
+
+      await EmailService.sendEmail(type, appointment.patient_email, emailData);
+      
+      toast({
+        title: "Email enviado",
+        description: `${type === 'appointment-reminder' ? 'Recordatorio' : 'Confirmación'} enviado a ${appointment.patient_email}`,
+      });
+    } catch (error) {
+      console.error('Error enviando email:', error);
+      toast({
+        title: "Error al enviar email",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'programada': return 'bg-blue-100 text-blue-800';
@@ -170,13 +235,10 @@ const AppointmentManager = () => {
 
   const generatePatientReportPDF = async (appointment) => {
     try {
-      const professionals = await apiService.getProfessionals();
-      const professional = professionals.find(p => p.id.toString() === appointment.professionalId) || { name: 'N/A' };
-
       const doc = new jsPDF();
 
       doc.setFontSize(22);
-      doc.setTextColor(40, 58, 90); // Dark Blue
+      doc.setTextColor(40, 58, 90);
       doc.text(clinicName, 105, 20, { align: 'center' });
 
       doc.setFontSize(12);
@@ -202,14 +264,17 @@ const AppointmentManager = () => {
         yPos += 8;
       };
 
-      addDetail("Paciente:", appointment.patientName);
-      addDetail("Email Paciente:", appointment.patientEmail);
-      addDetail("Profesional:", professional.name);
+      addDetail("Paciente:", appointment.patient_name);
+      addDetail("Email:", appointment.patient_email || 'No disponible');
+      addDetail("Teléfono:", appointment.patient_phone || 'No disponible');
+      addDetail("Profesional:", appointment.professional_name);
+      addDetail("Disciplina:", appointment.professional_info?.discipline || 'No disponible');
       addDetail("Fecha:", new Date(appointment.date).toLocaleDateString('es-ES'));
       addDetail("Hora:", appointment.time);
-      addDetail("Tipo de Consulta:", appointment.type);
+      addDetail("Tipo:", appointment.type);
       addDetail("Costo:", `$${parseFloat(appointment.cost || 0).toFixed(2)} MXN`);
-      addDetail("Estado de Pago:", getStatusLabel(appointment.paymentStatus, 'payment'));
+      addDetail("Estado Pago:", getStatusLabel(appointment.payment_status, 'payment'));
+      addDetail("Estado General:", getStatusLabel(appointment.status));
       
       if(appointment.notes) {
           yPos += 4;
@@ -227,10 +292,10 @@ const AppointmentManager = () => {
       doc.setFontSize(10);
       doc.setTextColor(150);
       doc.text("Gracias por su preferencia.", 105, yPos, { align: 'center' });
-      doc.text(`Contacto: (123) 456-7890 | info@${clinicName.toLowerCase().replace(/\s/g, '')}.com`, 105, yPos + 5, { align: 'center' });
+      doc.text(`Contacto: ${localStorage.getItem('clinic_phone') || '(123) 456-7890'}`, 105, yPos + 5, { align: 'center' });
 
-      doc.save(`cita_${appointment.folio}_${appointment.patientName.replace(/\s/g, '_')}.pdf`);
-      toast({ title: "Reporte PDF Generado", description: "El reporte de la cita para el paciente se ha descargado." });
+      doc.save(`cita_${appointment.folio}_${appointment.patient_name.replace(/\s/g, '_')}.pdf`);
+      toast({ title: "Reporte PDF Generado", description: "El reporte de la cita se ha descargado." });
     } catch (error) {
       console.error('Error generando PDF:', error);
       toast({
@@ -240,13 +305,6 @@ const AppointmentManager = () => {
       });
     }
   };
-
-  const sendPatientReportByEmail = (appointment) => {
-     toast({
-        title: "🚧 Funcionalidad en desarrollo",
-        description: "El envío de reportes por email aún no está implementado. Puedes descargarlo y enviarlo manualmente.",
-      });
-  }
 
   if (loading) {
     return (
@@ -372,14 +430,35 @@ const AppointmentManager = () => {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-card-foreground">{appointment.patientName}</div>
-                          <div className="text-xs text-muted-foreground">{appointment.patientEmail}</div>
+                          <div className="text-sm font-medium text-card-foreground">{appointment.patient_name}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            {appointment.patient_email && (
+                              <span className="flex items-center">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {appointment.patient_email}
+                              </span>
+                            )}
+                            {appointment.patient_phone && (
+                              <span className="flex items-center">
+                                <Phone className="w-3 h-3 mr-1" />
+                                {appointment.patient_phone}
+                              </span>
+                            )}
+                          </div>
+                          {appointment.patient_info?.age && (
+                            <div className="text-xs text-muted-foreground">
+                              {appointment.patient_info.age} años - {appointment.patient_info.gender}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td className="px-0 md:px-6 py-2 md:py-4 whitespace-nowrap">
                       <span className="font-bold md:hidden">Profesional: </span>
-                      <div className="text-sm font-medium text-card-foreground inline md:block">{appointment.professionalName}</div>
+                      <div className="text-sm font-medium text-card-foreground inline md:block">{appointment.professional_name}</div>
+                      {appointment.professional_info?.discipline && (
+                        <div className="text-xs text-muted-foreground">{appointment.professional_info.discipline}</div>
+                      )}
                     </td>
                     <td className="px-0 md:px-6 py-2 md:py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-card-foreground">
@@ -397,8 +476,8 @@ const AppointmentManager = () => {
                     </td>
                     <td className="px-0 md:px-6 py-2 md:py-4 whitespace-nowrap">
                        <span className="font-bold md:hidden">Estado Pago: </span>
-                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(appointment.paymentStatus)}`}>
-                        {getStatusLabel(appointment.paymentStatus, 'payment')}
+                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(appointment.payment_status)}`}>
+                        {getStatusLabel(appointment.payment_status, 'payment')}
                       </span>
                     </td>
                     <td className="px-0 md:px-6 py-2 md:py-4 whitespace-nowrap">
@@ -408,16 +487,18 @@ const AppointmentManager = () => {
                       </span>
                     </td>
                     <td className="px-0 md:px-6 py-2 md:py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-1 mt-2 md:mt-0">
+                      <div className="flex flex-wrap gap-1 mt-2 md:mt-0">
                         <Button size="sm" variant="outline" onClick={() => { setEditingAppointment(appointment); setShowForm(true); }} title="Editar Cita">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => generatePatientReportPDF(appointment)} title="Descargar PDF Paciente">
+                        <Button size="sm" variant="outline" onClick={() => generatePatientReportPDF(appointment)} title="Descargar PDF">
                           <FileText className="w-4 h-4" />
                         </Button>
-                         <Button size="sm" variant="outline" onClick={() => sendPatientReportByEmail(appointment)} title="Enviar PDF por Email">
-                          <Send className="w-4 h-4" />
-                        </Button>
+                        {appointment.patient_email && (
+                          <Button size="sm" variant="outline" onClick={() => handleSendEmail(appointment, 'appointment-reminder')} title="Enviar Recordatorio">
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => handleDeleteAppointment(appointment.id)} title="Eliminar Cita" className="text-destructive hover:text-destructive/90">
                           <Trash2 className="w-4 h-4" />
                         </Button>

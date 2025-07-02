@@ -14,8 +14,14 @@ try {
             if ($appointmentId) {
                 $stmt = $pdo->prepare("
                     SELECT a.*, 
-                           p.name as patient_full_name, 
+                           p.name as patient_full_name,
+                           p.email as patient_email_db,
+                           p.phone as patient_phone_db,
+                           p.age as patient_age,
+                           p.gender as patient_gender,
                            pr.name as professional_full_name,
+                           pr.email as professional_email,
+                           pr.phone as professional_phone,
                            pr.discipline_id,
                            d.name as discipline_name
                     FROM appointments a
@@ -32,25 +38,22 @@ try {
                     sendError('Appointment not found', 404);
                 }
                 
-                // Asegurar que los nombres estén disponibles
-                if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
-                    $appointment['patient_name'] = $appointment['patient_full_name'];
-                }
-                if (!$appointment['professional_name'] && $appointment['professional_full_name']) {
-                    $appointment['professional_name'] = $appointment['professional_full_name'];
-                }
-                
-                // Asegurar valores por defecto
-                $appointment['payment_status'] = $appointment['payment_status'] ?: 'pendiente';
-                $appointment['status'] = $appointment['status'] ?: 'programada';
+                // Enriquecer datos del paciente
+                $appointment = enrichAppointmentData($appointment);
                 
                 logApiActivity('appointments', 'GET', 200, "Retrieved appointment: ID $appointmentId");
                 sendResponse($appointment);
             } else {
                 $stmt = $pdo->query("
                     SELECT a.*, 
-                           p.name as patient_full_name, 
+                           p.name as patient_full_name,
+                           p.email as patient_email_db,
+                           p.phone as patient_phone_db,
+                           p.age as patient_age,
+                           p.gender as patient_gender,
                            pr.name as professional_full_name,
+                           pr.email as professional_email,
+                           pr.phone as professional_phone,
                            pr.discipline_id,
                            d.name as discipline_name
                     FROM appointments a
@@ -61,20 +64,9 @@ try {
                 ");
                 $appointments = $stmt->fetchAll();
                 
-                // Asegurar que los nombres estén disponibles para todas las citas
+                // Enriquecer datos para todas las citas
                 foreach ($appointments as &$appointment) {
-                    // Usar nombres de las tablas relacionadas si no están en la cita
-                    if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
-                        $appointment['patient_name'] = $appointment['patient_full_name'];
-                    }
-                    if (!$appointment['professional_name'] && $appointment['professional_full_name']) {
-                        $appointment['professional_name'] = $appointment['professional_full_name'];
-                    }
-                    
-                    // Asegurar valores por defecto
-                    $appointment['payment_status'] = $appointment['payment_status'] ?: 'pendiente';
-                    $appointment['status'] = $appointment['status'] ?: 'programada';
-                    $appointment['cost'] = $appointment['cost'] ?: '0.00';
+                    $appointment = enrichAppointmentData($appointment);
                 }
                 
                 logApiActivity('appointments', 'GET', 200, "Retrieved all appointments: " . count($appointments) . " records");
@@ -102,22 +94,28 @@ try {
                 $patientId = $patient['id'];
             }
             
-            // Obtener nombre del profesional
+            // Obtener información completa del profesional
             $professionalName = null;
+            $professionalEmail = null;
             if ($data['professionalId']) {
-                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT name, email FROM professionals WHERE id = ?");
                 $stmt->execute([$data['professionalId']]);
                 $professional = $stmt->fetch();
                 if ($professional) {
                     $professionalName = $professional['name'];
+                    $professionalEmail = $professional['email'];
                 }
             }
+            
+            // Generar folio si no se proporciona
+            $folio = $data['folio'] ?? generateFolio();
             
             $stmt = $pdo->prepare("
                 INSERT INTO appointments 
                 (patient_id, patient_name, patient_email, patient_phone, professional_id, 
-                 professional_name, date, time, type, notes, status, payment_status, cost, folio) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 professional_name, professional_email, date, time, type, notes, status, 
+                 payment_status, cost, folio) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $stmt->execute([
@@ -126,30 +124,43 @@ try {
                 $data['patientEmail'],
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
-                $professionalName ?? $data['professionalName'] ?? null,
+                $professionalName,
+                $professionalEmail,
                 $data['date'],
                 $data['time'],
                 $data['type'],
                 $data['notes'] ?? null,
                 $data['status'] ?? 'programada',
                 $data['paymentStatus'] ?? 'pendiente',
-                $data['cost'] ?? null,
-                $data['folio'] ?? null
+                $data['cost'] ?? '0.00',
+                $folio
             ]);
             
             $appointmentId = $pdo->lastInsertId();
             
+            // Obtener la cita completa con todos los datos
             $stmt = $pdo->prepare("
                 SELECT a.*, 
-                       p.name as patient_full_name, 
-                       pr.name as professional_full_name
+                       p.name as patient_full_name,
+                       p.email as patient_email_db,
+                       p.phone as patient_phone_db,
+                       p.age as patient_age,
+                       p.gender as patient_gender,
+                       pr.name as professional_full_name,
+                       pr.email as professional_email,
+                       pr.phone as professional_phone,
+                       pr.discipline_id,
+                       d.name as discipline_name
                 FROM appointments a
                 LEFT JOIN patients p ON a.patient_id = p.id
                 LEFT JOIN professionals pr ON a.professional_id = pr.id
+                LEFT JOIN disciplines d ON pr.discipline_id = d.id
                 WHERE a.id = ?
             ");
             $stmt->execute([$appointmentId]);
             $appointment = $stmt->fetch();
+            
+            $appointment = enrichAppointmentData($appointment);
             
             logApiActivity('appointments', 'POST', 201, "Created appointment: ID $appointmentId");
             sendResponse($appointment, 201);
@@ -174,22 +185,24 @@ try {
                 }
             }
             
-            // Obtener nombre del profesional
+            // Obtener información completa del profesional
             $professionalName = null;
+            $professionalEmail = null;
             if (isset($data['professionalId']) && $data['professionalId']) {
-                $stmt = $pdo->prepare("SELECT name FROM professionals WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT name, email FROM professionals WHERE id = ?");
                 $stmt->execute([$data['professionalId']]);
                 $professional = $stmt->fetch();
                 if ($professional) {
                     $professionalName = $professional['name'];
+                    $professionalEmail = $professional['email'];
                 }
             }
             
             $stmt = $pdo->prepare("
                 UPDATE appointments 
                 SET patient_id = ?, patient_name = ?, patient_email = ?, patient_phone = ?, 
-                    professional_id = ?, professional_name = ?, date = ?, time = ?, 
-                    type = ?, notes = ?, status = ?, payment_status = ?, cost = ?
+                    professional_id = ?, professional_name = ?, professional_email = ?, 
+                    date = ?, time = ?, type = ?, notes = ?, status = ?, payment_status = ?, cost = ?
                 WHERE id = ?
             ");
             
@@ -199,28 +212,41 @@ try {
                 $data['patientEmail'],
                 $data['patientPhone'] ?? null,
                 $data['professionalId'],
-                $professionalName ?? $data['professionalName'] ?? null,
+                $professionalName,
+                $professionalEmail,
                 $data['date'],
                 $data['time'],
                 $data['type'],
                 $data['notes'] ?? null,
                 $data['status'] ?? 'programada',
                 $data['paymentStatus'] ?? 'pendiente',
-                $data['cost'] ?? null,
+                $data['cost'] ?? '0.00',
                 $appointmentId
             ]);
             
+            // Obtener la cita actualizada con todos los datos
             $stmt = $pdo->prepare("
                 SELECT a.*, 
-                       p.name as patient_full_name, 
-                       pr.name as professional_full_name
+                       p.name as patient_full_name,
+                       p.email as patient_email_db,
+                       p.phone as patient_phone_db,
+                       p.age as patient_age,
+                       p.gender as patient_gender,
+                       pr.name as professional_full_name,
+                       pr.email as professional_email,
+                       pr.phone as professional_phone,
+                       pr.discipline_id,
+                       d.name as discipline_name
                 FROM appointments a
                 LEFT JOIN patients p ON a.patient_id = p.id
                 LEFT JOIN professionals pr ON a.professional_id = pr.id
+                LEFT JOIN disciplines d ON pr.discipline_id = d.id
                 WHERE a.id = ?
             ");
             $stmt->execute([$appointmentId]);
             $appointment = $stmt->fetch();
+            
+            $appointment = enrichAppointmentData($appointment);
             
             logApiActivity('appointments', 'PUT', 200, "Updated appointment: ID $appointmentId");
             sendResponse($appointment);
@@ -247,5 +273,56 @@ try {
 } catch (Exception $e) {
     logApiActivity('appointments', $method, 500, "Error: " . $e->getMessage());
     sendError($e->getMessage());
+}
+
+function enrichAppointmentData($appointment) {
+    // Asegurar que los nombres estén disponibles
+    if (!$appointment['patient_name'] && $appointment['patient_full_name']) {
+        $appointment['patient_name'] = $appointment['patient_full_name'];
+    }
+    if (!$appointment['professional_name'] && $appointment['professional_full_name']) {
+        $appointment['professional_name'] = $appointment['professional_full_name'];
+    }
+    
+    // Usar email de la base de datos si está disponible
+    if (!$appointment['patient_email'] && $appointment['patient_email_db']) {
+        $appointment['patient_email'] = $appointment['patient_email_db'];
+    }
+    if (!$appointment['patient_phone'] && $appointment['patient_phone_db']) {
+        $appointment['patient_phone'] = $appointment['patient_phone_db'];
+    }
+    
+    // Asegurar valores por defecto
+    $appointment['payment_status'] = $appointment['payment_status'] ?: 'pendiente';
+    $appointment['status'] = $appointment['status'] ?: 'programada';
+    $appointment['cost'] = $appointment['cost'] ?: '0.00';
+    
+    // Agregar información adicional del paciente
+    $appointment['patient_info'] = [
+        'age' => $appointment['patient_age'],
+        'gender' => $appointment['patient_gender'],
+        'email' => $appointment['patient_email'],
+        'phone' => $appointment['patient_phone']
+    ];
+    
+    // Agregar información adicional del profesional
+    $appointment['professional_info'] = [
+        'email' => $appointment['professional_email'],
+        'phone' => $appointment['professional_phone'],
+        'discipline' => $appointment['discipline_name'],
+        'discipline_id' => $appointment['discipline_id']
+    ];
+    
+    return $appointment;
+}
+
+function generateFolio() {
+    $prefix = "CDX"; // Clínica Delux
+    $date = new Date();
+    $year = $date->format('y');
+    $month = $date->format('m');
+    $day = $date->format('d');
+    $randomSuffix = strtoupper(substr(uniqid(), -4));
+    return "{$prefix}-{$year}{$month}{$day}-{$randomSuffix}";
 }
 ?>
