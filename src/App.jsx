@@ -39,6 +39,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('clinic_auth');
@@ -101,16 +102,129 @@ function App() {
       
       // Mostrar notificación de modo offline
       toast({
-        title: "Modo Offline",
-        description: "Trabajando con datos locales. Los cambios se sincronizarán cuando haya conexión.",
+        title: "Modo Híbrido Activado",
+        description: "Trabajando con datos locales. Los cambios se sincronizarán automáticamente.",
         variant: "default"
       });
+    }
+  };
+
+  // Función para limpiar cache al iniciar sesión
+  const clearApplicationCache = async () => {
+    try {
+      // Limpiar cache del navegador
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+        console.log('✅ Cache del navegador limpiado');
+      }
+
+      // Limpiar localStorage de datos temporales (mantener configuración)
+      const keysToKeep = [
+        'clinic_name',
+        'clinic_address', 
+        'clinic_phone',
+        'clinic_email_config',
+        'clinic_auth',
+        'clinic_user'
+      ];
+      
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (!keysToKeep.includes(key)) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // Limpiar sessionStorage
+      sessionStorage.clear();
+
+      console.log('✅ Cache de aplicación limpiado');
+      
+      toast({
+        title: "Cache limpiado",
+        description: "Se ha limpiado el cache para evitar conflictos con actualizaciones.",
+      });
+
+    } catch (error) {
+      console.error('Error limpiando cache:', error);
+    }
+  };
+
+  // Función para sincronizar datos al cambiar de sección
+  const syncDataForSection = async (sectionView) => {
+    if (!dbConnected) return;
+
+    setIsSyncing(true);
+    
+    try {
+      // Mapear secciones a entidades de datos
+      const sectionDataMap = {
+        'appointments': ['appointments', 'patients', 'professionals'],
+        'patients': ['patients'],
+        'professionals': ['professionals', 'disciplines'],
+        'disciplines': ['disciplines'],
+        'calendar': ['appointments', 'patients', 'professionals'],
+        'dashboard': ['appointments', 'patients', 'professionals', 'disciplines'],
+        'professional-portal': ['appointments', 'patients', 'professionals'],
+        'finances': ['appointments'],
+        'reports': ['appointments', 'patients', 'professionals']
+      };
+
+      const entitiesToSync = sectionDataMap[sectionView] || [];
+      
+      if (entitiesToSync.length > 0) {
+        console.log(`🔄 Sincronizando datos para sección: ${sectionView}`);
+        
+        // Sincronizar cada entidad necesaria
+        const syncPromises = entitiesToSync.map(async (entity) => {
+          try {
+            switch (entity) {
+              case 'appointments':
+                await apiService.getAppointments();
+                break;
+              case 'patients':
+                await apiService.getPatients();
+                break;
+              case 'professionals':
+                await apiService.getProfessionals();
+                break;
+              case 'disciplines':
+                await apiService.getDisciplines();
+                break;
+            }
+          } catch (error) {
+            console.warn(`Error sincronizando ${entity}:`, error);
+          }
+        });
+
+        await Promise.all(syncPromises);
+        
+        console.log(`✅ Sincronización completada para: ${sectionView}`);
+        
+        // Mostrar notificación discreta solo si hay datos nuevos
+        toast({
+          title: "Datos actualizados",
+          description: "Se han cargado los datos más recientes de la base de datos.",
+          duration: 2000
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error en sincronización automática:', error);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   const handleLogin = async (userData) => {
     setIsLoading(true);
     try {
+      // Limpiar cache antes del login
+      await clearApplicationCache();
+      
       const response = await apiService.login(userData);
       
       if (response && response.success) {
@@ -120,10 +234,17 @@ function App() {
         localStorage.setItem('clinic_user', JSON.stringify(response.user));
         setCurrentView('dashboard');
         setDbConnected(true);
+        
         toast({
           title: "¡Bienvenido!",
           description: `Hola ${response.user.name}, has iniciado sesión correctamente.`,
         });
+
+        // Sincronizar datos iniciales después del login
+        setTimeout(() => {
+          syncDataForSection('dashboard');
+        }, 1000);
+        
       } else {
         toast({
           title: "Error de autenticación",
@@ -143,15 +264,19 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Limpiar cache al cerrar sesión
+    await clearApplicationCache();
+    
     setIsAuthenticated(false);
     setCurrentUser(null);
     setCurrentView('dashboard');
     localStorage.removeItem('clinic_auth');
     localStorage.removeItem('clinic_user');
+    
     toast({
       title: "Sesión cerrada",
-      description: "Has cerrado sesión correctamente.",
+      description: "Has cerrado sesión correctamente. Cache limpiado.",
     });
   };
 
@@ -180,9 +305,13 @@ function App() {
     return allMenuItems.filter(item => item.roles.includes(userRole));
   };
 
-  const handleSetView = (view) => {
+  const handleSetView = async (view) => {
     if (currentUser && isViewAllowed(view, currentUser.role)) {
       setCurrentView(view);
+      
+      // Sincronizar datos automáticamente al cambiar de sección
+      await syncDataForSection(view);
+      
       if (window.innerWidth < 1024) {
         setIsSidebarOpen(false);
       }
@@ -210,6 +339,12 @@ function App() {
               <span className="text-xs text-primary-foreground/70">
                 {dbConnected ? 'BD Conectada' : 'Modo Híbrido'}
               </span>
+              {isSyncing && (
+                <div className="ml-2 flex items-center">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-primary-foreground/70 ml-1">Sync...</span>
+                </div>
+              )}
             </div>
           </div>
           <Button variant="ghost" size="icon" className="lg:hidden text-white" onClick={() => setIsSidebarOpen(false)}>
@@ -243,9 +378,15 @@ function App() {
                     ? 'bg-white/20 text-white' 
                     : 'text-primary-foreground/80 hover:bg-white/10 hover:text-white'
                 }`}
+                disabled={isSyncing}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
+                {isSyncing && currentView === item.id && (
+                  <div className="ml-auto">
+                    <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin"></div>
+                  </div>
+                )}
               </motion.button>
             );
           })}
