@@ -83,22 +83,25 @@ const AppointmentManager = () => {
       });
 
       // Enviar email de confirmación automáticamente
-      if (newAppointment.patient_email && EmailService.isConfigured()) {
+      if (newAppointment.patient_email) {
         try {
-          const emailData = {
-            patient_name: newAppointment.patient_name,
-            professional_name: newAppointment.professional_name,
-            appointment_date: `${newAppointment.date} a las ${newAppointment.time}`,
-            appointment_type: newAppointment.type,
-            folio: newAppointment.folio
-          };
+          const isConfigured = await EmailService.isConfigured();
+          if (isConfigured) {
+            const emailData = {
+              patient_name: newAppointment.patient_name,
+              professional_name: newAppointment.professional_name,
+              appointment_date: `${newAppointment.date} a las ${newAppointment.time}`,
+              appointment_type: newAppointment.type,
+              folio: newAppointment.folio
+            };
 
-          await EmailService.sendEmail('appointment-confirmation', newAppointment.patient_email, emailData);
-          
-          toast({
-            title: "Email enviado",
-            description: `Confirmación enviada a ${newAppointment.patient_email}`,
-          });
+            await EmailService.sendEmail('appointment-confirmation', newAppointment.patient_email, emailData);
+            
+            toast({
+              title: "Email enviado",
+              description: `Confirmación enviada a ${newAppointment.patient_email}`,
+            });
+          }
         } catch (emailError) {
           console.error('Error enviando email:', emailError);
           toast({
@@ -160,7 +163,7 @@ const AppointmentManager = () => {
     }
   };
 
-  const handleSendEmail = async (appointment, type = 'appointment-reminder') => {
+  const handleSendEmail = async (appointment, type = 'appointment-reminder-patient') => {
     if (!appointment.patient_email) {
       toast({
         title: "Error",
@@ -170,16 +173,17 @@ const AppointmentManager = () => {
       return;
     }
 
-    if (!EmailService.isConfigured()) {
-      toast({
-        title: "Configuración requerida",
-        description: "Configure las credenciales SMTP en Configuración primero.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
+      const isConfigured = await EmailService.isConfigured();
+      if (!isConfigured) {
+        toast({
+          title: "Configuración requerida",
+          description: "Configure las credenciales SMTP en Configuración primero.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const emailData = {
         patient_name: appointment.patient_name,
         professional_name: appointment.professional_name,
@@ -192,7 +196,7 @@ const AppointmentManager = () => {
       
       toast({
         title: "Email enviado",
-        description: `${type === 'appointment-reminder' ? 'Recordatorio' : 'Confirmación'} enviado a ${appointment.patient_email}`,
+        description: `${type === 'appointment-reminder-patient' ? 'Recordatorio' : 'Confirmación'} enviado a ${appointment.patient_email}`,
       });
     } catch (error) {
       console.error('Error enviando email:', error);
@@ -495,7 +499,7 @@ const AppointmentManager = () => {
                           <FileText className="w-4 h-4" />
                         </Button>
                         {appointment.patient_email && (
-                          <Button size="sm" variant="outline" onClick={() => handleSendEmail(appointment, 'appointment-reminder')} title="Enviar Recordatorio">
+                          <Button size="sm" variant="outline" onClick={() => handleSendEmail(appointment, 'appointment-reminder-patient')} title="Enviar Recordatorio">
                             <Send className="w-4 h-4" />
                           </Button>
                         )}
