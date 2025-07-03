@@ -160,7 +160,7 @@ class CacheManager {
       await this.invalidateEntityCache(entity);
       
       // Forzar recarga desde la base de datos
-      const apiService = (await import('../services/ApiService')).default;
+      const apiService = (await import('./ApiService')).default;
       
       let freshData;
       switch (entity) {
@@ -294,8 +294,8 @@ class CacheManager {
     }
   }
 
-  // NUEVO: Configurar headers para evitar cache del navegador
-  static getNoCache Headers() {
+  // CORREGIDO: Configurar headers para evitar cache del navegador
+  static getNoCacheHeaders() {
     return {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
