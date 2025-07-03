@@ -3,17 +3,8 @@ const CACHE_NAME = 'clinica-delux-v1';
 const urlsToCache = [
   './',
   './index.html',
-  './assets/index.css',
-  './assets/index.js',
   './manifest.json',
-  './icons/icon-72x72.png',
-  './icons/icon-96x96.png',
-  './icons/icon-128x128.png',
-  './icons/icon-144x144.png',
-  './icons/icon-152x152.png',
-  './icons/icon-192x192.png',
-  './icons/icon-384x384.png',
-  './icons/icon-512x512.png'
+  // Nota: Los assets se generan dinámicamente por Vite, no los incluimos aquí
 ];
 
 self.addEventListener('install', (event) => {
@@ -24,7 +15,8 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Cache abierto');
-        return cache.addAll(urlsToCache);
+        // Solo cachear archivos que sabemos que existen
+        return cache.addAll(['./', './index.html', './manifest.json']);
       })
       .catch((error) => {
         console.log('Error al cachear archivos:', error);

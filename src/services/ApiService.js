@@ -50,8 +50,10 @@ class ApiService {
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
-          // AGREGAR headers para evitar cache
-          ...CacheManager.getNoCacheHeaders(),
+          // CORREGIDO: Usar la referencia correcta al método estático
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
           ...options.headers
         },
         ...options
