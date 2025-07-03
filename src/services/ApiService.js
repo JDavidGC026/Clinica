@@ -1,13 +1,15 @@
-// Servicio centralizado para manejo de APIs - Corregido
+// Servicio de API mejorado con almacenamiento híbrido
+import HybridStorageService from './HybridStorageService';
+
 class ApiService {
   constructor() {
     this.baseURL = this.detectBaseURL();
     this.logs = [];
     this.maxLogs = 100;
+    this.hybridStorage = HybridStorageService;
   }
 
   detectBaseURL() {
-    // Siempre usar rutas relativas para mayor compatibilidad
     return './';
   }
 
@@ -22,26 +24,17 @@ class ApiService {
 
     this.logs.unshift(logEntry);
     
-    // Mantener solo los últimos logs
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(0, this.maxLogs);
     }
 
-    // Guardar en localStorage para persistencia
     localStorage.setItem('api_logs', JSON.stringify(this.logs));
-
-    // Log en consola también
     console[level](`[API] ${message}`, data || '');
   }
 
   async request(endpoint, options = {}) {
-    // Limpiar endpoint - remover .php si ya existe
     let cleanEndpoint = endpoint.replace(/\.php$/, '');
-    
-    // Separar endpoint base de parámetros
     const [baseEndpoint, queryParams] = cleanEndpoint.split('?');
-    
-    // Construir URL final
     const finalEndpoint = queryParams ? `${baseEndpoint}.php?${queryParams}` : `${baseEndpoint}.php`;
     const url = `${this.baseURL}api/${finalEndpoint}`;
     
@@ -62,8 +55,6 @@ class ApiService {
       });
 
       const duration = Date.now() - startTime;
-      
-      // Clonar la respuesta para poder leerla múltiples veces
       const responseClone = response.clone();
       
       try {
@@ -86,7 +77,6 @@ class ApiService {
           throw new Error(responseData.error || `HTTP ${responseClone.status}: ${responseClone.statusText}`);
         }
       } catch (jsonError) {
-        // Si no se puede parsear como JSON, usar el clon
         const textResponse = await responseClone.text();
         this.log('error', `Error al parsear JSON: ${url} (${duration}ms)`, {
           status: responseClone.status,
@@ -134,7 +124,7 @@ class ApiService {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  // Métodos específicos para cada entidad
+  // Métodos híbridos para cada entidad
   async getHealthCheck() {
     return this.get('health-check');
   }
@@ -145,87 +135,204 @@ class ApiService {
   }
 
   async getUsers() {
-    return this.get('users');
+    try {
+      // Intentar cargar desde BD
+      const serverData = await this.get('users');
+      
+      // Guardar en almacenamiento híbrido
+      localStorage.setItem('clinic_users', JSON.stringify(serverData));
+      
+      return serverData;
+    } catch (error) {
+      // Fallback a datos locales
+      this.log('warn', 'Cargando usuarios desde almacenamiento local', { error: error.message });
+      return this.hybridStorage.getFromLocalStorage('users');
+    }
   }
 
-  async createUser(userData) {
-    return this.post('users', userData);
-  }
-
-  async updateUser(id, userData) {
-    return this.put(`users?id=${id}`, userData);
-  }
-
-  async deleteUser(id) {
-    return this.delete(`users?id=${id}`);
-  }
-
-  // Disciplinas
+  // Disciplinas con almacenamiento híbrido
   async getDisciplines() {
-    return this.get('disciplines');
+    try {
+      const serverData = await this.get('disciplines');
+      localStorage.setItem('clinic_disciplines', JSON.stringify(serverData));
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Cargando disciplinas desde almacenamiento local', { error: error.message });
+      return this.hybridStorage.getFromLocalStorage('disciplines');
+    }
   }
 
   async createDiscipline(disciplineData) {
-    return this.post('disciplines', disciplineData);
+    try {
+      // Intentar crear en BD
+      const serverResponse = await this.post('disciplines', disciplineData);
+      
+      // Actualizar almacenamiento local
+      await this.hybridStorage.saveData('disciplines', serverResponse, 'create', serverResponse.id);
+      
+      return serverResponse;
+    } catch (error) {
+      // Guardar solo localmente
+      this.log('warn', 'Guardando disciplina solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('disciplines', disciplineData, 'create');
+    }
   }
 
   async updateDiscipline(id, disciplineData) {
-    return this.put(`disciplines?id=${id}`, disciplineData);
+    try {
+      const serverResponse = await this.put(`disciplines?id=${id}`, disciplineData);
+      await this.hybridStorage.saveData('disciplines', serverResponse, 'update', id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Actualizando disciplina solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('disciplines', { ...disciplineData, id }, 'update', id);
+    }
   }
 
   async deleteDiscipline(id) {
-    return this.delete(`disciplines?id=${id}`);
+    try {
+      await this.delete(`disciplines?id=${id}`);
+      await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Eliminando disciplina solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
+    }
   }
 
-  // Profesionales
+  // Profesionales con almacenamiento híbrido
   async getProfessionals() {
-    return this.get('professionals');
+    try {
+      const serverData = await this.get('professionals');
+      localStorage.setItem('clinic_professionals', JSON.stringify(serverData));
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Cargando profesionales desde almacenamiento local', { error: error.message });
+      return this.hybridStorage.getFromLocalStorage('professionals');
+    }
   }
 
   async createProfessional(professionalData) {
-    return this.post('professionals', professionalData);
+    try {
+      const serverResponse = await this.post('professionals', professionalData);
+      await this.hybridStorage.saveData('professionals', serverResponse, 'create', serverResponse.id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Guardando profesional solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('professionals', professionalData, 'create');
+    }
   }
 
   async updateProfessional(id, professionalData) {
-    return this.put(`professionals?id=${id}`, professionalData);
+    try {
+      const serverResponse = await this.put(`professionals?id=${id}`, professionalData);
+      await this.hybridStorage.saveData('professionals', serverResponse, 'update', id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Actualizando profesional solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('professionals', { ...professionalData, id }, 'update', id);
+    }
   }
 
   async deleteProfessional(id) {
-    return this.delete(`professionals?id=${id}`);
+    try {
+      await this.delete(`professionals?id=${id}`);
+      await this.hybridStorage.saveData('professionals', { id }, 'delete', id);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Eliminando profesional solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('professionals', { id }, 'delete', id);
+    }
   }
 
-  // Pacientes
+  // Pacientes con almacenamiento híbrido
   async getPatients() {
-    return this.get('patients');
+    try {
+      const serverData = await this.get('patients');
+      localStorage.setItem('clinic_patients', JSON.stringify(serverData));
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Cargando pacientes desde almacenamiento local', { error: error.message });
+      return this.hybridStorage.getFromLocalStorage('patients');
+    }
   }
 
   async createPatient(patientData) {
-    return this.post('patients', patientData);
+    try {
+      const serverResponse = await this.post('patients', patientData);
+      await this.hybridStorage.saveData('patients', serverResponse, 'create', serverResponse.id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Guardando paciente solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('patients', patientData, 'create');
+    }
   }
 
   async updatePatient(id, patientData) {
-    return this.put(`patients?id=${id}`, patientData);
+    try {
+      const serverResponse = await this.put(`patients?id=${id}`, patientData);
+      await this.hybridStorage.saveData('patients', serverResponse, 'update', id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Actualizando paciente solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('patients', { ...patientData, id }, 'update', id);
+    }
   }
 
   async deletePatient(id) {
-    return this.delete(`patients?id=${id}`);
+    try {
+      await this.delete(`patients?id=${id}`);
+      await this.hybridStorage.saveData('patients', { id }, 'delete', id);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Eliminando paciente solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('patients', { id }, 'delete', id);
+    }
   }
 
-  // Citas
+  // Citas con almacenamiento híbrido
   async getAppointments() {
-    return this.get('appointments');
+    try {
+      const serverData = await this.get('appointments');
+      localStorage.setItem('clinic_appointments', JSON.stringify(serverData));
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Cargando citas desde almacenamiento local', { error: error.message });
+      return this.hybridStorage.getFromLocalStorage('appointments');
+    }
   }
 
   async createAppointment(appointmentData) {
-    return this.post('appointments', appointmentData);
+    try {
+      const serverResponse = await this.post('appointments', appointmentData);
+      await this.hybridStorage.saveData('appointments', serverResponse, 'create', serverResponse.id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Guardando cita solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('appointments', appointmentData, 'create');
+    }
   }
 
   async updateAppointment(id, appointmentData) {
-    return this.put(`appointments?id=${id}`, appointmentData);
+    try {
+      const serverResponse = await this.put(`appointments?id=${id}`, appointmentData);
+      await this.hybridStorage.saveData('appointments', serverResponse, 'update', id);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Actualizando cita solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('appointments', { ...appointmentData, id }, 'update', id);
+    }
   }
 
   async deleteAppointment(id) {
-    return this.delete(`appointments?id=${id}`);
+    try {
+      await this.delete(`appointments?id=${id}`);
+      await this.hybridStorage.saveData('appointments', { id }, 'delete', id);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Eliminando cita solo localmente', { error: error.message });
+      return await this.hybridStorage.saveData('appointments', { id }, 'delete', id);
+    }
   }
 
   // Emails
@@ -271,7 +378,6 @@ class ApiService {
     this.log('info', 'Logs exportados');
   }
 
-  // Cargar logs desde localStorage al inicializar
   loadLogs() {
     try {
       const savedLogs = localStorage.getItem('api_logs');
@@ -283,9 +389,17 @@ class ApiService {
       this.logs = [];
     }
   }
+
+  // Métodos de sincronización
+  async forceSyncAll() {
+    return await this.hybridStorage.forceSyncAll();
+  }
+
+  getSyncStats() {
+    return this.hybridStorage.getSyncStats();
+  }
 }
 
-// Crear instancia global
 const apiService = new ApiService();
 apiService.loadLogs();
 

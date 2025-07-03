@@ -20,6 +20,7 @@ import ApiLogsViewer from '@/components/ApiLogsViewer';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAUpdateNotification from '@/components/PWAUpdateNotification';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import apiService from '@/services/ApiService';
 
 const ROLES = {
@@ -69,6 +70,25 @@ function App() {
     
     // Verificar conexión a la base de datos
     checkDatabaseConnection();
+
+    // Configurar listeners para eventos de sincronización
+    const handleSyncSuccess = () => {
+      setDbConnected(true);
+    };
+
+    const handleDataUpdated = (event) => {
+      if (event.detail.source === 'database') {
+        setDbConnected(true);
+      }
+    };
+
+    window.addEventListener('syncSuccess', handleSyncSuccess);
+    window.addEventListener('dataUpdated', handleDataUpdated);
+
+    return () => {
+      window.removeEventListener('syncSuccess', handleSyncSuccess);
+      window.removeEventListener('dataUpdated', handleDataUpdated);
+    };
   }, []);
 
   const checkDatabaseConnection = async () => {
@@ -78,6 +98,13 @@ function App() {
     } catch (error) {
       setDbConnected(false);
       console.error('Error conectando a la base de datos:', error);
+      
+      // Mostrar notificación de modo offline
+      toast({
+        title: "Modo Offline",
+        description: "Trabajando con datos locales. Los cambios se sincronizarán cuando haya conexión.",
+        variant: "default"
+      });
     }
   };
 
@@ -92,6 +119,7 @@ function App() {
         localStorage.setItem('clinic_auth', 'true');
         localStorage.setItem('clinic_user', JSON.stringify(response.user));
         setCurrentView('dashboard');
+        setDbConnected(true);
         toast({
           title: "¡Bienvenido!",
           description: `Hola ${response.user.name}, has iniciado sesión correctamente.`,
@@ -178,9 +206,9 @@ function App() {
             </h1>
             <p className="text-primary-foreground/80 text-sm">Sistema de Gestión</p>
             <div className="mt-2 flex items-center">
-              <div className={`w-2 h-2 rounded-full mr-2 ${dbConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <div className={`w-2 h-2 rounded-full mr-2 ${dbConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
               <span className="text-xs text-primary-foreground/70">
-                {dbConnected ? 'BD Conectada' : 'BD Desconectada'}
+                {dbConnected ? 'BD Conectada' : 'Modo Híbrido'}
               </span>
             </div>
           </div>
@@ -238,19 +266,6 @@ function App() {
   }
 
   const renderContent = () => {
-    if (!dbConnected) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-          <Activity size={64} className="text-destructive mb-4" />
-          <h2 className="text-2xl font-semibold text-foreground mb-2">Error de Conexión</h2>
-          <p className="text-muted-foreground mb-4">No se puede conectar a la base de datos. Verifica la configuración.</p>
-          <Button onClick={checkDatabaseConnection} className="button-primary-gradient">
-            Reintentar Conexión
-          </Button>
-        </div>
-      );
-    }
-
     if (currentUser && !isViewAllowed(currentView, currentUser.role)) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -360,6 +375,7 @@ function App() {
       <PWAInstallPrompt />
       <PWAUpdateNotification />
       <OfflineIndicator />
+      <SyncStatusIndicator />
     </div>
   );
 }
