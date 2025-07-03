@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Users, Home, UserPlus, CalendarDays, Mail, LogOut, Menu, X, Settings, ShieldCheck, Briefcase, FileText, Activity, DollarSign, BarChart3, Stethoscope, Bug } from 'lucide-react';
+import { Calendar, Users, Home, UserPlus, CalendarDays, Mail, LogOut, Menu, X, Settings, ShieldCheck, Briefcase, FileText, Activity, DollarSign, BarChart3, Stethoscope, Bug, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/components/ui/use-toast';
@@ -22,6 +22,7 @@ import PWAUpdateNotification from '@/components/PWAUpdateNotification';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import apiService from '@/services/ApiService';
+import CacheManager from '@/services/CacheManager';
 
 const ROLES = {
   ADMIN: 'Administrador',
@@ -40,6 +41,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('clinic_auth');
@@ -83,12 +85,35 @@ function App() {
       }
     };
 
+    // NUEVO: Listener para invalidación de cache
+    const handleCacheInvalidated = (event) => {
+      console.log('🔄 Cache invalidado para:', event.detail.entity);
+      // Forzar re-render de componentes
+      window.dispatchEvent(new Event('storage'));
+    };
+
+    // NUEVO: Listener para actualización forzada de datos
+    const handleDataForceRefreshed = (event) => {
+      console.log('✅ Datos actualizados para:', event.detail.entity);
+      toast({
+        title: "Datos actualizados",
+        description: `Se han actualizado los datos de ${event.detail.entity}`,
+      });
+    };
+
     window.addEventListener('syncSuccess', handleSyncSuccess);
     window.addEventListener('dataUpdated', handleDataUpdated);
+    window.addEventListener('cacheInvalidated', handleCacheInvalidated);
+    window.addEventListener('dataForceRefreshed', handleDataForceRefreshed);
+
+    // Manejar actualizaciones de app
+    CacheManager.handleAppUpdate();
 
     return () => {
       window.removeEventListener('syncSuccess', handleSyncSuccess);
       window.removeEventListener('dataUpdated', handleDataUpdated);
+      window.removeEventListener('cacheInvalidated', handleCacheInvalidated);
+      window.removeEventListener('dataForceRefreshed', handleDataForceRefreshed);
     };
   }, []);
 
@@ -109,38 +134,33 @@ function App() {
     }
   };
 
+  // NUEVO: Función para forzar actualización de datos
+  const handleForceRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await apiService.forceRefreshAll();
+      toast({
+        title: "✅ Datos actualizados",
+        description: "Se han cargado los datos más recientes de la base de datos.",
+      });
+    } catch (error) {
+      console.error('Error forzando actualización:', error);
+      toast({
+        title: "Error de actualización",
+        description: "No se pudieron actualizar todos los datos: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Función para limpiar cache al iniciar sesión
   const clearApplicationCache = async () => {
     try {
-      // Limpiar cache del navegador
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(
-          cacheNames.map(cacheName => caches.delete(cacheName))
-        );
-        console.log('✅ Cache del navegador limpiado');
-      }
-
-      // Limpiar localStorage de datos temporales (mantener configuración)
-      const keysToKeep = [
-        'clinic_name',
-        'clinic_address', 
-        'clinic_phone',
-        'clinic_email_config',
-        'clinic_auth',
-        'clinic_user'
-      ];
-      
-      const allKeys = Object.keys(localStorage);
-      allKeys.forEach(key => {
-        if (!keysToKeep.includes(key)) {
-          localStorage.removeItem(key);
-        }
-      });
-
-      // Limpiar sessionStorage
-      sessionStorage.clear();
-
+      await CacheManager.clearAllCache();
       console.log('✅ Cache de aplicación limpiado');
       
       toast({
@@ -203,13 +223,6 @@ function App() {
         await Promise.all(syncPromises);
         
         console.log(`✅ Sincronización completada para: ${sectionView}`);
-        
-        // Mostrar notificación discreta solo si hay datos nuevos
-        toast({
-          title: "Datos actualizados",
-          description: "Se han cargado los datos más recientes de la base de datos.",
-          duration: 2000
-        });
       }
       
     } catch (error) {
@@ -339,13 +352,31 @@ function App() {
               <span className="text-xs text-primary-foreground/70">
                 {dbConnected ? 'BD Conectada' : 'Modo Híbrido'}
               </span>
-              {isSyncing && (
+              {(isSyncing || isRefreshing) && (
                 <div className="ml-2 flex items-center">
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-primary-foreground/70 ml-1">Sync...</span>
+                  <span className="text-xs text-primary-foreground/70 ml-1">
+                    {isRefreshing ? 'Actualizando...' : 'Sync...'}
+                  </span>
                 </div>
               )}
             </div>
+            
+            {/* NUEVO: Botón de actualización forzada */}
+            {dbConnected && (
+              <div className="mt-2">
+                <Button
+                  onClick={handleForceRefresh}
+                  disabled={isRefreshing}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-primary-foreground/80 hover:text-white hover:bg-white/10 p-1 h-auto"
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Actualizando...' : 'Actualizar datos'}
+                </Button>
+              </div>
+            )}
           </div>
           <Button variant="ghost" size="icon" className="lg:hidden text-white" onClick={() => setIsSidebarOpen(false)}>
             <X className="w-6 h-6" />
@@ -378,11 +409,11 @@ function App() {
                     ? 'bg-white/20 text-white' 
                     : 'text-primary-foreground/80 hover:bg-white/10 hover:text-white'
                 }`}
-                disabled={isSyncing}
+                disabled={isSyncing || isRefreshing}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
-                {isSyncing && currentView === item.id && (
+                {(isSyncing || isRefreshing) && currentView === item.id && (
                   <div className="ml-auto">
                     <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin"></div>
                   </div>

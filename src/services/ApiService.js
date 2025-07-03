@@ -1,5 +1,6 @@
-// Servicio de API mejorado con almacenamiento híbrido
+// Servicio de API mejorado con invalidación automática de cache
 import HybridStorageService from './HybridStorageService';
+import CacheManager from './CacheManager';
 
 class ApiService {
   constructor() {
@@ -49,6 +50,8 @@ class ApiService {
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
+          // AGREGAR headers para evitar cache
+          ...CacheManager.getNoCacheHeaders(),
           ...options.headers
         },
         ...options
@@ -124,37 +127,47 @@ class ApiService {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  // Métodos híbridos para cada entidad
+  // Métodos híbridos para cada entidad con invalidación automática de cache
   async getHealthCheck() {
     return this.get('health-check');
   }
 
-  // Usuarios
+  // Usuarios con invalidación de cache
   async login(credentials) {
     return this.post('login', credentials);
   }
 
   async getUsers() {
     try {
-      // Intentar cargar desde BD
-      const serverData = await this.get('users');
+      // SIEMPRE invalidar cache antes de cargar usuarios
+      await CacheManager.invalidateEntityCache('users');
       
-      // Guardar en almacenamiento híbrido
+      const serverData = await this.get('users');
       localStorage.setItem('clinic_users', JSON.stringify(serverData));
+      
+      // Disparar evento de actualización
+      window.dispatchEvent(new CustomEvent('dataUpdated', {
+        detail: { entity: 'users', data: serverData, source: 'database' }
+      }));
       
       return serverData;
     } catch (error) {
-      // Fallback a datos locales
       this.log('warn', 'Cargando usuarios desde almacenamiento local', { error: error.message });
       return this.hybridStorage.getFromLocalStorage('users');
     }
   }
 
-  // Disciplinas con almacenamiento híbrido
+  // Disciplinas con invalidación automática
   async getDisciplines() {
     try {
+      await CacheManager.invalidateEntityCache('disciplines');
       const serverData = await this.get('disciplines');
       localStorage.setItem('clinic_disciplines', JSON.stringify(serverData));
+      
+      window.dispatchEvent(new CustomEvent('dataUpdated', {
+        detail: { entity: 'disciplines', data: serverData, source: 'database' }
+      }));
+      
       return serverData;
     } catch (error) {
       this.log('warn', 'Cargando disciplinas desde almacenamiento local', { error: error.message });
@@ -164,15 +177,18 @@ class ApiService {
 
   async createDiscipline(disciplineData) {
     try {
-      // Intentar crear en BD
       const serverResponse = await this.post('disciplines', disciplineData);
       
-      // Actualizar almacenamiento local
+      // Invalidar cache inmediatamente después de crear
+      await CacheManager.invalidateEntityCache('disciplines');
+      
       await this.hybridStorage.saveData('disciplines', serverResponse, 'create', serverResponse.id);
+      
+      // Forzar actualización de datos
+      setTimeout(() => this.getDisciplines(), 100);
       
       return serverResponse;
     } catch (error) {
-      // Guardar solo localmente
       this.log('warn', 'Guardando disciplina solo localmente', { error: error.message });
       return await this.hybridStorage.saveData('disciplines', disciplineData, 'create');
     }
@@ -181,7 +197,12 @@ class ApiService {
   async updateDiscipline(id, disciplineData) {
     try {
       const serverResponse = await this.put(`disciplines?id=${id}`, disciplineData);
+      
+      await CacheManager.invalidateEntityCache('disciplines');
       await this.hybridStorage.saveData('disciplines', serverResponse, 'update', id);
+      
+      setTimeout(() => this.getDisciplines(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Actualizando disciplina solo localmente', { error: error.message });
@@ -192,7 +213,12 @@ class ApiService {
   async deleteDiscipline(id) {
     try {
       await this.delete(`disciplines?id=${id}`);
+      
+      await CacheManager.invalidateEntityCache('disciplines');
       await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
+      
+      setTimeout(() => this.getDisciplines(), 100);
+      
       return { success: true };
     } catch (error) {
       this.log('warn', 'Eliminando disciplina solo localmente', { error: error.message });
@@ -200,11 +226,17 @@ class ApiService {
     }
   }
 
-  // Profesionales con almacenamiento híbrido
+  // Profesionales con invalidación automática
   async getProfessionals() {
     try {
+      await CacheManager.invalidateEntityCache('professionals');
       const serverData = await this.get('professionals');
       localStorage.setItem('clinic_professionals', JSON.stringify(serverData));
+      
+      window.dispatchEvent(new CustomEvent('dataUpdated', {
+        detail: { entity: 'professionals', data: serverData, source: 'database' }
+      }));
+      
       return serverData;
     } catch (error) {
       this.log('warn', 'Cargando profesionales desde almacenamiento local', { error: error.message });
@@ -215,7 +247,12 @@ class ApiService {
   async createProfessional(professionalData) {
     try {
       const serverResponse = await this.post('professionals', professionalData);
+      
+      await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', serverResponse, 'create', serverResponse.id);
+      
+      setTimeout(() => this.getProfessionals(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Guardando profesional solo localmente', { error: error.message });
@@ -226,7 +263,12 @@ class ApiService {
   async updateProfessional(id, professionalData) {
     try {
       const serverResponse = await this.put(`professionals?id=${id}`, professionalData);
+      
+      await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', serverResponse, 'update', id);
+      
+      setTimeout(() => this.getProfessionals(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Actualizando profesional solo localmente', { error: error.message });
@@ -237,7 +279,12 @@ class ApiService {
   async deleteProfessional(id) {
     try {
       await this.delete(`professionals?id=${id}`);
+      
+      await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', { id }, 'delete', id);
+      
+      setTimeout(() => this.getProfessionals(), 100);
+      
       return { success: true };
     } catch (error) {
       this.log('warn', 'Eliminando profesional solo localmente', { error: error.message });
@@ -245,11 +292,17 @@ class ApiService {
     }
   }
 
-  // Pacientes con almacenamiento híbrido
+  // Pacientes con invalidación automática
   async getPatients() {
     try {
+      await CacheManager.invalidateEntityCache('patients');
       const serverData = await this.get('patients');
       localStorage.setItem('clinic_patients', JSON.stringify(serverData));
+      
+      window.dispatchEvent(new CustomEvent('dataUpdated', {
+        detail: { entity: 'patients', data: serverData, source: 'database' }
+      }));
+      
       return serverData;
     } catch (error) {
       this.log('warn', 'Cargando pacientes desde almacenamiento local', { error: error.message });
@@ -260,7 +313,12 @@ class ApiService {
   async createPatient(patientData) {
     try {
       const serverResponse = await this.post('patients', patientData);
+      
+      await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', serverResponse, 'create', serverResponse.id);
+      
+      setTimeout(() => this.getPatients(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Guardando paciente solo localmente', { error: error.message });
@@ -271,7 +329,12 @@ class ApiService {
   async updatePatient(id, patientData) {
     try {
       const serverResponse = await this.put(`patients?id=${id}`, patientData);
+      
+      await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', serverResponse, 'update', id);
+      
+      setTimeout(() => this.getPatients(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Actualizando paciente solo localmente', { error: error.message });
@@ -282,7 +345,12 @@ class ApiService {
   async deletePatient(id) {
     try {
       await this.delete(`patients?id=${id}`);
+      
+      await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', { id }, 'delete', id);
+      
+      setTimeout(() => this.getPatients(), 100);
+      
       return { success: true };
     } catch (error) {
       this.log('warn', 'Eliminando paciente solo localmente', { error: error.message });
@@ -290,11 +358,17 @@ class ApiService {
     }
   }
 
-  // Citas con almacenamiento híbrido
+  // Citas con invalidación automática
   async getAppointments() {
     try {
+      await CacheManager.invalidateEntityCache('appointments');
       const serverData = await this.get('appointments');
       localStorage.setItem('clinic_appointments', JSON.stringify(serverData));
+      
+      window.dispatchEvent(new CustomEvent('dataUpdated', {
+        detail: { entity: 'appointments', data: serverData, source: 'database' }
+      }));
+      
       return serverData;
     } catch (error) {
       this.log('warn', 'Cargando citas desde almacenamiento local', { error: error.message });
@@ -305,7 +379,12 @@ class ApiService {
   async createAppointment(appointmentData) {
     try {
       const serverResponse = await this.post('appointments', appointmentData);
+      
+      await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', serverResponse, 'create', serverResponse.id);
+      
+      setTimeout(() => this.getAppointments(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Guardando cita solo localmente', { error: error.message });
@@ -316,7 +395,12 @@ class ApiService {
   async updateAppointment(id, appointmentData) {
     try {
       const serverResponse = await this.put(`appointments?id=${id}`, appointmentData);
+      
+      await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', serverResponse, 'update', id);
+      
+      setTimeout(() => this.getAppointments(), 100);
+      
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Actualizando cita solo localmente', { error: error.message });
@@ -327,7 +411,12 @@ class ApiService {
   async deleteAppointment(id) {
     try {
       await this.delete(`appointments?id=${id}`);
+      
+      await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', { id }, 'delete', id);
+      
+      setTimeout(() => this.getAppointments(), 100);
+      
       return { success: true };
     } catch (error) {
       this.log('warn', 'Eliminando cita solo localmente', { error: error.message });
@@ -397,6 +486,35 @@ class ApiService {
 
   getSyncStats() {
     return this.hybridStorage.getSyncStats();
+  }
+
+  // NUEVO: Método para forzar actualización completa
+  async forceRefreshAll() {
+    try {
+      console.log('🔄 Forzando actualización completa de todos los datos...');
+      
+      // Limpiar todo el cache de datos
+      await CacheManager.clearDataCache();
+      
+      // Recargar todas las entidades
+      const entities = ['appointments', 'patients', 'professionals', 'disciplines'];
+      const results = {};
+      
+      for (const entity of entities) {
+        try {
+          results[entity] = await CacheManager.forceRefreshEntity(entity);
+        } catch (error) {
+          console.error(`Error actualizando ${entity}:`, error);
+          results[entity] = null;
+        }
+      }
+      
+      console.log('✅ Actualización completa finalizada:', results);
+      return results;
+    } catch (error) {
+      console.error('Error en actualización completa:', error);
+      throw error;
+    }
   }
 }
 

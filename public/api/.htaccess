@@ -3,6 +3,11 @@ Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
 
+# NUEVO: Headers para evitar cache
+Header always set Cache-Control "no-cache, no-store, must-revalidate"
+Header always set Pragma "no-cache"
+Header always set Expires "0"
+
 # Manejar OPTIONS requests
 RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
@@ -18,5 +23,9 @@ RewriteRule ^(.*)$ $1 [R=200,L]
     <IfModule mod_headers.c>
         Header set X-Content-Type-Options "nosniff"
         Header set X-Frame-Options "SAMEORIGIN"
+        # NUEVO: Evitar cache en archivos PHP
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
     </IfModule>
 </Files>

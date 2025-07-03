@@ -1,6 +1,6 @@
 class CacheManager {
   constructor() {
-    this.cacheVersion = '1.0.0';
+    this.cacheVersion = '1.0.1'; // Incrementar versión para forzar limpieza
     this.cacheName = `clinic-cache-${this.cacheVersion}`;
   }
 
@@ -127,6 +127,76 @@ class CacheManager {
     }
   }
 
+  // NUEVO: Invalidar cache específico después de operaciones CRUD
+  async invalidateEntityCache(entity) {
+    try {
+      // Limpiar datos específicos de la entidad
+      const entityKey = `clinic_${entity}`;
+      localStorage.removeItem(entityKey);
+      
+      // Limpiar cola de sincronización para esta entidad
+      const syncQueue = JSON.parse(localStorage.getItem('clinic_sync_queue') || '[]');
+      const filteredQueue = syncQueue.filter(item => item.entity !== entity);
+      localStorage.setItem('clinic_sync_queue', JSON.stringify(filteredQueue));
+      
+      console.log(`✅ Cache invalidado para entidad: ${entity}`);
+      
+      // Disparar evento para que los componentes se actualicen
+      window.dispatchEvent(new CustomEvent('cacheInvalidated', {
+        detail: { entity }
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error invalidando cache para ${entity}:`, error);
+      return false;
+    }
+  }
+
+  // NUEVO: Forzar actualización inmediata de datos
+  async forceRefreshEntity(entity) {
+    try {
+      // Invalidar cache local
+      await this.invalidateEntityCache(entity);
+      
+      // Forzar recarga desde la base de datos
+      const apiService = (await import('../services/ApiService')).default;
+      
+      let freshData;
+      switch (entity) {
+        case 'users':
+          freshData = await apiService.getUsers();
+          break;
+        case 'appointments':
+          freshData = await apiService.getAppointments();
+          break;
+        case 'patients':
+          freshData = await apiService.getPatients();
+          break;
+        case 'professionals':
+          freshData = await apiService.getProfessionals();
+          break;
+        case 'disciplines':
+          freshData = await apiService.getDisciplines();
+          break;
+        default:
+          throw new Error(`Entidad no soportada: ${entity}`);
+      }
+      
+      console.log(`✅ Datos actualizados para ${entity}:`, freshData.length, 'elementos');
+      
+      // Disparar evento de actualización
+      window.dispatchEvent(new CustomEvent('dataForceRefreshed', {
+        detail: { entity, data: freshData }
+      }));
+      
+      return freshData;
+    } catch (error) {
+      console.error(`Error forzando actualización de ${entity}:`, error);
+      throw error;
+    }
+  }
+
   // Verificar si hay cache obsoleto
   async checkForObsoleteCache() {
     try {
@@ -222,6 +292,15 @@ class CacheManager {
       console.error('Error manejando actualización de app:', error);
       return false;
     }
+  }
+
+  // NUEVO: Configurar headers para evitar cache del navegador
+  static getNoCache Headers() {
+    return {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
   }
 }
 
