@@ -120,16 +120,17 @@ class EmailService {
     return templates[type] || null;
   }
 
-  // Procesar template con variables
+  // CORREGIDO: Procesar template con variables
   processTemplate(template, data, clinicName, clinicAddress, clinicPhone) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    // NUEVA función para formatear fecha y hora correctamente
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     const allData = {
       ...data,
       clinic_name: clinicName,
       clinic_address: clinicAddress,
       clinic_phone: clinicPhone,
-      appointment_date: appointmentDateTime || data.appointment_date || 'Por confirmar',
+      appointment_date: appointmentDateTime,
       patient_name: data.patient_name || 'Paciente',
       professional_name: data.professional_name || 'Por asignar',
       appointment_type: data.appointment_type || 'Consulta General',
@@ -147,36 +148,141 @@ class EmailService {
     return processed;
   }
 
-  // Formatear fecha y hora para Ciudad de México
-  formatMexicoDateTime(dateString, timeString = null) {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString + (timeString ? `T${timeString}:00` : 'T00:00:00'));
-    
-    const options = {
-      timeZone: 'America/Mexico_City',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long'
-    };
-
-    const timeOptions = {
-      timeZone: 'America/Mexico_City',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    };
-
-    const formattedDate = date.toLocaleDateString('es-MX', options);
-    const formattedTime = timeString ? date.toLocaleTimeString('es-MX', timeOptions) : '';
-    
-    return timeString ? `${formattedDate} a las ${formattedTime}` : formattedDate;
+  // NUEVA: Función mejorada para formatear fecha y hora de citas
+  formatAppointmentDateTime(data) {
+    try {
+      console.log('📅 Formateando fecha de cita:', data);
+      
+      // Extraer fecha y hora de diferentes formatos posibles
+      let dateStr = '';
+      let timeStr = '';
+      
+      // Caso 1: appointment_date contiene fecha y hora separadas por " a las "
+      if (data.appointment_date && data.appointment_date.includes(' a las ')) {
+        const parts = data.appointment_date.split(' a las ');
+        dateStr = parts[0];
+        timeStr = parts[1];
+      }
+      // Caso 2: appointment_date solo contiene fecha, time está separado
+      else if (data.appointment_date && data.time) {
+        dateStr = data.appointment_date;
+        timeStr = data.time;
+      }
+      // Caso 3: date y time están separados
+      else if (data.date && data.time) {
+        dateStr = data.date;
+        timeStr = data.time;
+      }
+      // Caso 4: appointment_date contiene solo fecha
+      else if (data.appointment_date) {
+        dateStr = data.appointment_date;
+        timeStr = '';
+      }
+      // Caso 5: date sin time
+      else if (data.date) {
+        dateStr = data.date;
+        timeStr = '';
+      }
+      
+      console.log('📅 Fecha extraída:', { dateStr, timeStr });
+      
+      // Validar y procesar fecha
+      if (!dateStr) {
+        return 'Fecha por confirmar';
+      }
+      
+      // Limpiar fecha (remover tiempo si viene junto)
+      if (dateStr.includes('T')) {
+        dateStr = dateStr.split('T')[0];
+      }
+      
+      // Validar formato de fecha YYYY-MM-DD
+      if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.warn('⚠️ Formato de fecha no válido:', dateStr);
+        return dateStr + (timeStr ? ` a las ${timeStr}` : '');
+      }
+      
+      // Crear fecha sin problemas de zona horaria
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      
+      // Verificar que la fecha sea válida
+      if (isNaN(date.getTime())) {
+        console.warn('⚠️ Fecha inválida:', dateStr);
+        return dateStr + (timeStr ? ` a las ${timeStr}` : '');
+      }
+      
+      // Formatear fecha en español para México
+      const dateOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Mexico_City'
+      };
+      
+      const formattedDate = date.toLocaleDateString('es-MX', dateOptions);
+      
+      // Procesar hora si existe
+      if (timeStr && timeStr.trim()) {
+        // Limpiar hora
+        timeStr = timeStr.trim();
+        
+        // Validar formato de hora HH:MM
+        if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          
+          // Crear fecha con hora para formatear correctamente
+          const dateWithTime = new Date(year, month - 1, day, hours, minutes);
+          
+          if (!isNaN(dateWithTime.getTime())) {
+            const timeOptions = {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'America/Mexico_City'
+            };
+            
+            const formattedTime = dateWithTime.toLocaleTimeString('es-MX', timeOptions);
+            return `${formattedDate} a las ${formattedTime}`;
+          }
+        }
+        
+        // Si la hora no se puede formatear, usar tal como viene
+        return `${formattedDate} a las ${timeStr}`;
+      }
+      
+      // Solo fecha sin hora
+      return formattedDate;
+      
+    } catch (error) {
+      console.error('❌ Error formateando fecha de cita:', error, data);
+      
+      // Fallback: devolver datos originales
+      if (data.appointment_date) {
+        return data.appointment_date;
+      } else if (data.date && data.time) {
+        return `${data.date} a las ${data.time}`;
+      } else if (data.date) {
+        return data.date;
+      }
+      
+      return 'Fecha por confirmar';
+    }
   }
 
-  // Template HTML para confirmación de cita (fallback)
+  // OBSOLETO: Mantener por compatibilidad pero no usar
+  formatMexicoDateTime(dateString, timeString = null) {
+    console.warn('⚠️ formatMexicoDateTime está obsoleto, usar formatAppointmentDateTime');
+    return this.formatAppointmentDateTime({ 
+      date: dateString, 
+      time: timeString 
+    });
+  }
+
+  // Template HTML para confirmación de cita (CORREGIDO)
   generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
       <!DOCTYPE html>
@@ -212,7 +318,7 @@ class EmailService {
               <h3 style="margin-top: 0; color: #d946ef;">Detalles de la Cita</h3>
               <div class="detail-row">
                 <span class="detail-label">Fecha y Hora:</span>
-                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
+                <span class="detail-value">${appointmentDateTime}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Profesional:</span>
@@ -255,9 +361,9 @@ class EmailService {
     `;
   }
 
-  // Template de recordatorio para PACIENTES
+  // Template de recordatorio para PACIENTES (CORREGIDO)
   generatePatientReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
       <!DOCTYPE html>
@@ -292,7 +398,7 @@ class EmailService {
             <div class="reminder-box">
               <h3 style="margin-top: 0; color: #d97706; text-align: center;">⏰ Su cita está próxima</h3>
               <p style="text-align: center; font-size: 16px; margin: 0;">
-                Le recordamos que tiene una cita programada para <strong>${appointmentDateTime || 'fecha por confirmar'}</strong>
+                Le recordamos que tiene una cita programada para <strong>${appointmentDateTime}</strong>
               </p>
             </div>
             
@@ -300,7 +406,7 @@ class EmailService {
               <h3 style="margin-top: 0; color: #f59e0b;">Detalles de la Cita</h3>
               <div class="detail-row">
                 <span class="detail-label">Fecha y Hora:</span>
-                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
+                <span class="detail-value">${appointmentDateTime}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Profesional:</span>
@@ -344,9 +450,9 @@ class EmailService {
     `;
   }
 
-  // Template de recordatorio para PROFESIONALES
+  // Template de recordatorio para PROFESIONALES (CORREGIDO)
   generateProfessionalReminderTemplate(data, clinicName, clinicAddress, clinicPhone) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
       <!DOCTYPE html>
@@ -382,7 +488,7 @@ class EmailService {
             <div class="reminder-box">
               <h3 style="margin-top: 0; color: #1d4ed8; text-align: center;">📅 Próxima Cita Programada</h3>
               <p style="text-align: center; font-size: 16px; margin: 0;">
-                Tiene una cita programada para <strong>${appointmentDateTime || 'fecha por confirmar'}</strong>
+                Tiene una cita programada para <strong>${appointmentDateTime}</strong>
               </p>
             </div>
             
@@ -390,7 +496,7 @@ class EmailService {
               <h3 style="margin-top: 0; color: #3b82f6;">Detalles de la Cita</h3>
               <div class="detail-row">
                 <span class="detail-label">Fecha y Hora:</span>
-                <span class="detail-value">${appointmentDateTime || 'Por confirmar'}</span>
+                <span class="detail-value">${appointmentDateTime}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Tipo de Consulta:</span>
@@ -446,9 +552,9 @@ class EmailService {
     `;
   }
 
-  // Template texto plano para confirmación
+  // Template texto plano para confirmación (CORREGIDO)
   generateConfirmationText(data, clinicName) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
 ${clinicName} - Confirmación de Cita
@@ -458,7 +564,7 @@ Estimado/a ${data.patient_name || 'Paciente'},
 Su cita ha sido confirmada exitosamente.
 
 Detalles de la Cita:
-- Fecha y Hora: ${appointmentDateTime || 'Por confirmar'} (Horario de Ciudad de México)
+- Fecha y Hora: ${appointmentDateTime} (Horario de Ciudad de México)
 - Profesional: ${data.professional_name || 'Por asignar'}
 - Tipo de Consulta: ${data.appointment_type || 'Consulta General'}
 ${data.folio ? `- Folio: ${data.folio}` : ''}
@@ -474,16 +580,16 @@ ${clinicName}
     `;
   }
 
-  // Templates texto plano para recordatorios
+  // Templates texto plano para recordatorios (CORREGIDOS)
   generatePatientReminderText(data, clinicName) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
 🔔 ${clinicName} - Recordatorio de Cita
 
 Estimado/a ${data.patient_name || 'Paciente'},
 
-Le recordamos que tiene una cita programada para ${appointmentDateTime || 'fecha por confirmar'}.
+Le recordamos que tiene una cita programada para ${appointmentDateTime}.
 
 Detalles:
 - Profesional: ${data.professional_name || 'Por asignar'}
@@ -500,14 +606,14 @@ ${clinicName}
   }
 
   generateProfessionalReminderText(data, clinicName) {
-    const appointmentDateTime = this.formatMexicoDateTime(data.appointment_date?.split(' ')[0], data.appointment_date?.split(' ')[3]);
+    const appointmentDateTime = this.formatAppointmentDateTime(data);
     
     return `
 📋 ${clinicName} - Recordatorio de Cita
 
 Dr(a). ${data.professional_name || 'Profesional'},
 
-Tiene una cita programada para ${appointmentDateTime || 'fecha por confirmar'}.
+Tiene una cita programada para ${appointmentDateTime}.
 
 Paciente: ${data.patient_name || 'No disponible'}
 Tipo: ${data.appointment_type || 'Consulta General'}
@@ -519,7 +625,7 @@ ${clinicName}
     `;
   }
 
-  // Otros templates (cancelación, bienvenida)
+  // Otros templates (cancelación, bienvenida) - CORREGIDOS
   generateCancellationTemplate(data, clinicName, clinicAddress, clinicPhone) {
     // Similar estructura pero con colores rojos para cancelación
     return this.generateConfirmationTemplate(data, clinicName, clinicAddress, clinicPhone)
@@ -547,6 +653,8 @@ ${clinicName}
   // Método principal para enviar email con configuración desde BD
   async sendEmail(type, recipientEmail, data = {}) {
     try {
+      console.log('📧 Enviando email:', { type, recipientEmail, data });
+      
       const template = this.getEmailTemplate(type, data);
       if (!template) {
         throw new Error(`Template de tipo '${type}' no encontrado`);
@@ -572,6 +680,11 @@ ${clinicName}
         from_name: this.config.from_name || 'Clínica Delux',
         type: type
       };
+
+      console.log('📧 Template generado:', {
+        subject: template.subject,
+        appointmentDateTime: this.formatAppointmentDateTime(data)
+      });
 
       // Enviar usando PHPMailer
       const response = await fetch('./api/phpmailer-send.php', {
