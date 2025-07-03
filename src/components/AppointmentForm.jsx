@@ -46,6 +46,54 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
   const [patientOpen, setPatientOpen] = useState(false);
   const [professionalOpen, setProfessionalOpen] = useState(false);
 
+  // Función para formatear fecha correctamente para México
+  const formatDateForMexico = (dateString) => {
+    if (!dateString) return '';
+    
+    // Si ya es una fecha en formato YYYY-MM-DD, devolverla tal como está
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // Si es una fecha completa, extraer solo la parte de fecha
+    const date = new Date(dateString);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      console.error('Fecha inválida:', dateString);
+      return '';
+    }
+    
+    // Obtener la fecha en zona horaria de México
+    const mexicoDate = new Date(date.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+    
+    // Formatear como YYYY-MM-DD
+    const year = mexicoDate.getFullYear();
+    const month = String(mexicoDate.getMonth() + 1).padStart(2, '0');
+    const day = String(mexicoDate.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  // Función para crear fecha sin problemas de zona horaria
+  const createLocalDate = (dateString) => {
+    if (!dateString) return '';
+    
+    // Si ya está en formato correcto, usarlo directamente
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // Si viene de la BD, puede tener formato ISO
+    if (typeof dateString === 'string' && dateString.includes('T')) {
+      const datePart = dateString.split('T')[0];
+      return datePart;
+    }
+    
+    // Para otros casos, usar formateo seguro
+    return formatDateForMexico(dateString);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -77,13 +125,18 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
     loadData();
 
     if (appointment) {
-      // Corregir el formato de fecha para evitar problemas de zona horaria
-      const appointmentDate = appointment.date ? new Date(appointment.date + 'T00:00:00') : null;
-      const formattedDate = appointmentDate ? appointmentDate.toISOString().split('T')[0] : '';
+      // CORRECCIÓN PRINCIPAL: Usar fecha local sin conversión de zona horaria
+      const localDate = createLocalDate(appointment.date);
+      
+      console.log('📅 Procesando fecha de cita:', {
+        original: appointment.date,
+        processed: localDate,
+        type: typeof appointment.date
+      });
       
       setFormData({
         ...appointment,
-        date: formattedDate,
+        date: localDate, // Usar fecha procesada correctamente
         professionalId: appointment.professionalId || appointment.psychologistId,
         professionalName: appointment.professionalName || appointment.psychologistName,
         cost: appointment.cost || '',
@@ -107,7 +160,13 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
         }
       }
     } else {
-      setFormData(prev => ({ ...prev, folio: generateFolio() }));
+      // Para citas nuevas, usar fecha actual en México
+      const today = getTodayDateInMexico();
+      setFormData(prev => ({ 
+        ...prev, 
+        date: today,
+        folio: generateFolio() 
+      }));
     }
   }, [appointment]);
 
@@ -150,10 +209,25 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Manejo especial para el campo de fecha
+    if (name === 'date') {
+      console.log('📅 Cambiando fecha:', {
+        valor_input: value,
+        tipo: typeof value
+      });
+      
+      // El valor ya viene en formato YYYY-MM-DD del input date
+      setFormData(prev => ({
+        ...prev,
+        [name]: value // Usar directamente sin conversión
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handlePatientSelect = (patient) => {
@@ -199,22 +273,38 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
       return;
     }
     
-    // Asegurar que la fecha se mantenga correcta sin conversión de zona horaria
+    // CORRECCIÓN: Enviar fecha tal como está (YYYY-MM-DD)
     const submitData = {
       ...formData,
-      date: formData.date // Mantener el formato YYYY-MM-DD tal como está
+      date: formData.date // Mantener formato YYYY-MM-DD sin conversión
     };
+    
+    console.log('📤 Enviando datos de cita:', {
+      fecha_original: formData.date,
+      fecha_enviada: submitData.date,
+      datos_completos: submitData
+    });
     
     onSubmit(submitData);
   };
 
-  // Obtener la fecha mínima (hoy) en formato local
-  const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    const day = today.getDate().toString().padStart(2, '0');
+  // Obtener la fecha de hoy en México en formato YYYY-MM-DD
+  const getTodayDateInMexico = () => {
+    const now = new Date();
+    
+    // Obtener fecha en zona horaria de México
+    const mexicoTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Mexico_City"}));
+    
+    const year = mexicoTime.getFullYear();
+    const month = String(mexicoTime.getMonth() + 1).padStart(2, '0');
+    const day = String(mexicoTime.getDate()).padStart(2, '0');
+    
     return `${year}-${month}-${day}`;
+  };
+
+  // Obtener la fecha mínima (hoy) en formato local para México
+  const getMinDate = () => {
+    return getTodayDateInMexico();
   };
 
   if (loading && !appointment) {
@@ -261,6 +351,16 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
             </Button>
           </div>
           {formData.folio && <p className="text-sm text-muted-foreground mt-1">Folio: {formData.folio}</p>}
+          
+          {/* Información de depuración de fecha (solo en desarrollo) */}
+          {process.env.NODE_ENV === 'development' && formData.date && (
+            <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+              <strong>🔧 Debug fecha:</strong> {formData.date} 
+              <span className="ml-2 text-gray-500">
+                (Zona: México/CDMX)
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -392,16 +492,28 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Fecha *</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
+                    Fecha * 
+                    <span className="text-xs text-blue-600 ml-1">(Zona: México/CDMX)</span>
+                  </label>
                   <input 
                     type="date" 
                     name="date" 
                     value={formData.date} 
                     onChange={handleChange} 
-                    min={getTodayDate()}
+                    min={getMinDate()}
                     className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" 
                     required 
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    📅 Fecha seleccionada: {formData.date ? new Date(formData.date + 'T12:00:00').toLocaleDateString('es-MX', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric',
+                      timeZone: 'America/Mexico_City'
+                    }) : 'No seleccionada'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Hora *</label>

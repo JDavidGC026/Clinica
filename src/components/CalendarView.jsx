@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/ApiService';
 import EmailService from '@/services/EmailService';
+import MexicoDateUtils from '@/utils/dateUtils';
 
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -19,10 +20,12 @@ const CalendarView = () => {
 
   useEffect(() => {
     if (selectedDate && appointments.length > 0) {
-      const dateStr = selectedDate.toDateString();
-      const dayAppts = appointments.filter(apt => 
-        new Date(apt.date).toDateString() === dateStr
-      ).sort((a, b) => a.time.localeCompare(b.time));
+      // Usar formato de fecha correcto para comparación
+      const selectedDateStr = MexicoDateUtils.formatDateFromDB(selectedDate.toISOString());
+      const dayAppts = appointments.filter(apt => {
+        const aptDateStr = MexicoDateUtils.formatDateFromDB(apt.date);
+        return aptDateStr === selectedDateStr;
+      }).sort((a, b) => a.time.localeCompare(b.time));
       setDayAppointments(dayAppts);
     }
   }, [selectedDate, appointments]);
@@ -31,6 +34,7 @@ const CalendarView = () => {
     try {
       setLoading(true);
       const appointmentsData = await apiService.getAppointments();
+      console.log('📅 Citas cargadas para calendario:', appointmentsData);
       setAppointments(appointmentsData);
       
       // Seleccionar la fecha actual por defecto
@@ -38,10 +42,11 @@ const CalendarView = () => {
       setSelectedDate(today);
       
       // Filtrar citas para la fecha actual
-      const todayStr = today.toDateString();
-      const todayAppts = appointmentsData.filter(apt => 
-        new Date(apt.date).toDateString() === todayStr
-      ).sort((a, b) => a.time.localeCompare(b.time));
+      const todayStr = MexicoDateUtils.formatDateFromDB(today.toISOString());
+      const todayAppts = appointmentsData.filter(apt => {
+        const aptDateStr = MexicoDateUtils.formatDateFromDB(apt.date);
+        return aptDateStr === todayStr;
+      }).sort((a, b) => a.time.localeCompare(b.time));
       setDayAppointments(todayAppts);
     } catch (error) {
       console.error('Error cargando citas:', error);
@@ -69,10 +74,9 @@ const CalendarView = () => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay(); // 0 for Sunday, 1 for Monday, etc.
+    const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    // Adjust startingDayOfWeek to be 0 for Sunday, 1 for Monday ... 6 for Saturday to match typical calendar layouts
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
@@ -89,11 +93,10 @@ const CalendarView = () => {
   const getAppointmentsForDate = (date) => {
     if (!appointments || appointments.length === 0) return [];
     
+    const dateStr = MexicoDateUtils.formatDateFromDB(date.toISOString());
     return appointments.filter(apt => {
-      const aptDate = new Date(apt.date);
-      return aptDate.getFullYear() === date.getFullYear() && 
-             aptDate.getMonth() === date.getMonth() && 
-             aptDate.getDate() === date.getDate();
+      const aptDateStr = MexicoDateUtils.formatDateFromDB(apt.date);
+      return aptDateStr === dateStr;
     });
   };
 
@@ -180,7 +183,7 @@ const CalendarView = () => {
       const emailData = {
         patient_name: appointment.patient_name,
         professional_name: appointment.professional_name,
-        appointment_date: `${appointment.date} a las ${appointment.time}`,
+        appointment_date: MexicoDateUtils.formatDateTimeForDisplay(appointment.date, appointment.time),
         appointment_type: appointment.type,
         folio: appointment.folio
       };
@@ -245,6 +248,7 @@ const CalendarView = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Calendario</h1>
           <p className="text-muted-foreground mt-1">Vista general de citas programadas</p>
+          <p className="text-xs text-blue-600 mt-1">🇲🇽 Zona horaria: Ciudad de México (GMT-6)</p>
         </div>
       </div>
 
@@ -305,7 +309,7 @@ const CalendarView = () => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center">
                 <Calendar className="w-5 h-5 mr-2 text-primary" />
-                {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {MexicoDateUtils.formatDateForDisplay(MexicoDateUtils.formatDateFromDB(selectedDate.toISOString()))}
               </h3>
               {dayAppointments.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No hay citas para este día.</p>
