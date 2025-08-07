@@ -39,3 +39,34 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+
+# Deploy and development files
+vendor/
+composer.lock
+*.pid
+*.seed
+*.pid.lock
+
+# API logs and temporary files
+public/api/api_log.txt
+*.Zone.Identifier
+
+# Database and development scripts
+test_*.php
+fix_*.php
+verify_*.php
+debug_*.php
+clear_and_restart.php
+implement_*.php
+
+# Backup files
+*.bak
+*.backup
+
+# Database files (local development)
+database_schema.sql
+migrations/
+
+# Documentation drafts and temporary files
+SOLUCION_PROBLEMAS.md
+SISTEMA_ROLES_DOCUMENTACION.md
