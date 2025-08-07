@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, User, Mail, Phone, Clock, Briefcase, Key, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import CustomSelect from '@/components/ui/CustomSelect';
 import apiService from '@/services/ApiService';
 
 const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => {
@@ -182,40 +183,36 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
                   Disciplina *
                 </label>
-                <select
+                <CustomSelect
                   name="disciplineId"
                   value={formData.disciplineId}
                   onChange={handleChange}
-                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  options={disciplines ? disciplines.map(discipline => ({
+                    value: discipline.id,
+                    label: discipline.name
+                  })) : []}
+                  placeholder="Seleccionar disciplina"
                   required
-                >
-                  <option value="">Seleccionar disciplina</option>
-                  {disciplines && disciplines.map(discipline => (
-                    <option key={discipline.id} value={discipline.id}>
-                      {discipline.name}
-                    </option>
-                  ))}
-                </select>
+                  maxHeight={150}
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
                   Rol del Sistema *
                 </label>
-                <select
+                <CustomSelect
                   name="role_id"
                   value={formData.role_id}
                   onChange={handleChange}
-                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  options={roles ? roles.map(role => ({
+                    value: role.id,
+                    label: role.name
+                  })) : []}
+                  placeholder="Seleccionar rol"
                   required
-                >
-                  <option value="">Seleccionar rol</option>
-                  {roles && roles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
+                  maxHeight={150}
+                />
               </div>
             </div>
 

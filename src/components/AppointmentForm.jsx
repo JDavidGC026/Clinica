@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Calendar, Clock, User, Mail, Phone, Briefcase, DollarSign, FileText, ChevronsUpDown, Check } from 'lucide-react';
+import { X, User, Calendar, DollarSign, FileText, Check, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { cn } from '@/lib/utils';
 import {
   Command,
   CommandEmpty,
@@ -9,13 +11,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command"
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/popover";
 import apiService from '@/services/ApiService';
 import { toast } from '@/components/ui/use-toast';
 
@@ -542,16 +543,15 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Hora *</label>
-                  <select 
-                    name="time" 
-                    value={formData.time} 
-                    onChange={handleChange} 
-                    className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  <CustomSelect
+                    name="time"
+                    value={formData.time}
+                    onChange={handleChange}
+                    options={timeSlots.map(time => ({ value: time, label: time }))}
+                    placeholder="Seleccionar hora"
                     required
-                  >
-                    <option value="">Seleccionar hora</option>
-                    {timeSlots.map(time => (<option key={time} value={time}>{time}</option>))}
-                  </select>
+                    maxHeight={200}
+                  />
                 </div>
               </div>
               <div>
@@ -581,15 +581,14 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Estado del Pago *</label>
-                <select 
-                  name="paymentStatus" 
-                  value={formData.paymentStatus} 
-                  onChange={handleChange} 
-                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                <CustomSelect
+                  name="paymentStatus"
+                  value={formData.paymentStatus}
+                  onChange={handleChange}
+                  options={paymentStatusOptions}
                   required
-                >
-                  {paymentStatusOptions.map(status => (<option key={status.value} value={status.value}>{status.label}</option>))}
-                </select>
+                  maxHeight={150}
+                />
               </div>
             </div>
           </div>
@@ -602,17 +601,18 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </h3>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Estado General</label>
-                <select 
-                  name="status" 
-                  value={formData.status} 
-                  onChange={handleChange} 
-                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                >
-                  <option value="programada">Programada</option>
-                  <option value="en-progreso">En Progreso</option>
-                  <option value="completada">Completada</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
+                <CustomSelect
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'programada', label: 'Programada' },
+                    { value: 'en-progreso', label: 'En Progreso' },
+                    { value: 'completada', label: 'Completada' },
+                    { value: 'cancelada', label: 'Cancelada' }
+                  ]}
+                  maxHeight={150}
+                />
               </div>
             </div>
           )}

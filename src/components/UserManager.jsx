@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Users, Search, RefreshCw, Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import CustomSelect from '@/components/ui/CustomSelect';
 import { toast } from '@/components/ui/use-toast';
 import {
   Dialog,
@@ -560,20 +561,17 @@ const UserManager = () => {
                   <label htmlFor="role_id" className="block text-sm font-medium text-muted-foreground mb-1">
                     Rol del sistema
                   </label>
-                  <select
-                    id="role_id"
+                  <CustomSelect
                     name="role_id"
                     value={formData.role_id}
                     onChange={handleInputChange}
-                    className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  >
-                    <option value="">Seleccionar rol...</option>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={roles.map((role) => ({
+                      value: role.id,
+                      label: role.name
+                    }))}
+                    placeholder="Seleccionar rol..."
+                    maxHeight={150}
+                  />
                 </div>
                 
                 <div>
