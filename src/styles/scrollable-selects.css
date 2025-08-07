@@ -1,0 +1,132 @@
+/* Estilos personalizados para selectores con scroll */
+select.scrollable-select {
+  height: auto !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  
+  /* Para mostrar múltiples opciones */
+  size: 5 !important;
+  
+  /* Personalizar scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  
+  /* Estilos adicionales para mejor apariencia */
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  border: 2px solid #e5e7eb !important;
+  background-color: white !important;
+  
+  /* Transición suave */
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Estado focus mejorado */
+select.scrollable-select:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Para navegadores WebKit (Chrome, Safari, Edge) */
+.scrollable-select::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollable-select::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.scrollable-select::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.scrollable-select::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Para tema oscuro */
+@media (prefers-color-scheme: dark) {
+  .scrollable-select {
+    scrollbar-color: #4a5568 #2d3748;
+  }
+  
+  .scrollable-select::-webkit-scrollbar-track {
+    background: #2d3748;
+  }
+  
+  .scrollable-select::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-color: #4a5568;
+  }
+  
+  .scrollable-select::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+  }
+}
+
+/* Mejorar la visibilidad cuando el select está enfocado */
+.scrollable-select:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Estilos para opciones en el select */
+.scrollable-select option {
+  padding: 8px 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.scrollable-select option:hover {
+  background-color: #f3f4f6;
+}
+
+/* Para tema oscuro en opciones */
+@media (prefers-color-scheme: dark) {
+  .scrollable-select option {
+    background-color: #1f2937;
+    color: #f9fafb;
+    border-bottom-color: #374151;
+  }
+  
+  .scrollable-select option:hover {
+    background-color: #374151;
+  }
+}
+
+/* Animación suave cuando se abre el select */
+.scrollable-select {
+  transition: max-height 0.2s ease-in-out;
+}
+
+/* Indicador visual de que el select tiene scroll */
+.scrollable-select::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #6b7280;
+  pointer-events: none;
+}
+
+/* Responsive: ajustar altura máxima en pantallas pequeñas */
+@media (max-width: 640px) {
+  .scrollable-select {
+    max-height: 150px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .scrollable-select {
+    max-height: 120px !important;
+  }
+}
