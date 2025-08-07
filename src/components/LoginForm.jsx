@@ -27,16 +27,27 @@ const LoginForm = ({ onLogin, isLoading }) => {
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="w-full max-w-md"
+      className="w-full max-w-lg"
     >
       <div className="glass-effect rounded-2xl p-8 shadow-2xl">
         <div className="text-center mb-8">
           <motion.div
             initial={{ y: -20 }}
             animate={{ y: 0 }}
-            className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center"
+            className="w-[250px] h-[200px] bg-white/10 rounded-xl mx-auto mb-4 flex items-center justify-center p-2"
           >
-            <Lock className="w-10 h-10 text-white" />
+            <img 
+              src="/logo.jpeg" 
+              alt="Logo Delux" 
+            className="w-full h-full rounded-xl object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-600 rounded-full items-center justify-center" style={{display: 'none'}}>
+              <Lock className="w-10 h-10 text-white" />
+            </div>
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">Clínica Delux</h1>
           <p className="text-purple-200">Sistema de Gestión Médica</p>
@@ -99,10 +110,10 @@ const LoginForm = ({ onLogin, isLoading }) => {
         <div className="mt-6 p-4 bg-white/5 rounded-lg">
           <p className="text-xs text-purple-200 mb-2">Usuarios de prueba:</p>
           <div className="text-xs text-purple-300 space-y-1">
-            <div><strong>Admin:</strong> admin / password</div>
-            <div><strong>Gerente:</strong> gerente / password</div>
-            <div><strong>Profesional:</strong> profesional1 / password</div>
-            <div><strong>Recepción:</strong> recepcion / password</div>
+            <div><strong>Admin:</strong> admin / admin123</div>
+            <div><strong>Gerente:</strong> gerente / gerente123</div>
+            <div><strong>Profesional:</strong> profesional1 / prof123</div>
+            <div><strong>Recepción:</strong> recepcion / recep123</div>
             <hr className="my-2 border-purple-400/30" />
             <div className="text-green-300">
               <strong>Profesionales:</strong> Usa tu email y contraseña asignada

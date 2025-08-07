@@ -668,17 +668,22 @@ ${clinicName}
         throw new Error('Configuración SMTP incompleta. Configure las credenciales en Configuración.');
       }
 
-      // Preparar datos para PHPMailer
+      // Preparar datos para PHPMailer con configuración completa
       const emailData = {
         to: recipientEmail,
         subject: template.subject,
         html: template.html,
         text: template.text,
+        type: type,
+        // Configuración SMTP completa
+        smtp_host: this.config.smtp_host || 'smtp.gmail.com',
+        smtp_port: this.config.smtp_port || '587',
+        smtp_secure: this.config.smtp_secure || 'tls',
+        smtp_auth: this.config.smtp_auth || '1',
         smtp_user: this.config.smtp_user,
         smtp_password: this.config.smtp_password,
         from_email: this.config.from_email || this.config.smtp_user,
-        from_name: this.config.from_name || 'Clínica Delux',
-        type: type
+        from_name: this.config.from_name || 'Grupo Médico Delux'
       };
 
       console.log('📧 Template generado:', {

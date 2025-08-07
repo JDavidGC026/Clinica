@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, DollarSign, Download, Filter, Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { BarChart3, DollarSign, Download, Filter, Plus, Edit, Trash2, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import jsPDF from 'jspdf';
@@ -12,150 +12,170 @@ import apiService from '@/services/ApiService';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const FinanceManager = () => {
-  const [transactions, setTransactions] = useState([]);
+  const [financeSummary, setFinanceSummary] = useState(null);
+  const [expenses, setExpenses] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
-  const [timePeriod, setTimePeriod] = useState('month'); // 'week', 'month', 'year'
+  const [timePeriod, setTimePeriod] = useState('month');
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [currentExpense, setCurrentExpense] = useState({ 
     description: '', 
     amount: '', 
     date: new Date().toISOString().split('T')[0], 
-    type: 'egreso',
     category: ''
   });
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [clinicName, setClinicName] = useState("Grupo Médico Delux");
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [dateRange, setDateRange] = useState({
+    start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+  });
 
   useEffect(() => {
     const storedClinicName = localStorage.getItem('clinic_name');
     if (storedClinicName) {
         setClinicName(storedClinicName);
     }
-    loadTransactions();
+    loadFinanceData();
   }, []);
 
   useEffect(() => {
-    filterAndProcessTransactions();
-  }, [transactions, timePeriod]);
+    updateDateRange();
+  }, [timePeriod]);
 
-  const loadTransactions = async () => {
+  useEffect(() => {
+    loadFinanceData();
+  }, [dateRange]);
+
+  useEffect(() => {
+    if (financeSummary && expenses.length >= 0) {
+      filterAndProcessTransactions();
+    }
+  }, [financeSummary, expenses, timePeriod]);
+
+  const updateDateRange = () => {
+    const now = new Date();
+    let start, end;
+
+    if (timePeriod === 'week') {
+      const firstDay = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
+      start = new Date(now.setDate(firstDay));
+      end = new Date(now.setDate(firstDay + 6));
+    } else if (timePeriod === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else { // year
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+    }
+
+    setDateRange({
+      start_date: start.toISOString().split('T')[0],
+      end_date: end.toISOString().split('T')[0],
+    });
+  };
+
+  const loadFinanceData = async () => {
     try {
       setLoading(true);
-      
-      // Cargar citas desde la API
-      const appointments = await apiService.getAppointments();
-      
-      // Cargar egresos manuales desde localStorage
-      const manualExpenses = JSON.parse(localStorage.getItem('clinic_expenses') || '[]');
+      const [summaryData, expensesData] = await Promise.all([
+        apiService.get(`finances?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
+        apiService.get('expenses'),
+      ]);
 
-      // Procesar ingresos desde citas pagadas
-      const incomeFromAppointments = appointments
-        .filter(apt => apt.payment_status === 'pagado' && apt.cost && parseFloat(apt.cost) > 0)
-        .map(apt => ({
-          id: `apt-${apt.id}`,
-          description: `Cita: ${apt.patient_name} (Folio: ${apt.folio})`,
-          amount: parseFloat(apt.cost),
-          date: apt.date,
-          type: 'ingreso',
-          category: 'Consultas Médicas',
-          source: 'appointment',
-          appointmentId: apt.id,
-          professionalName: apt.professional_name,
-          patientName: apt.patient_name,
-          appointmentType: apt.type
-        }));
-      
-      // Procesar egresos manuales
-      const processedExpenses = manualExpenses.map(exp => ({
-        ...exp, 
-        amount: parseFloat(exp.amount),
-        source: 'manual'
-      }));
-
-      // Combinar todas las transacciones
-      const allTransactions = [...incomeFromAppointments, ...processedExpenses];
-      
-      // Ordenar por fecha (más recientes primero)
-      allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      setTransactions(allTransactions);
+      setFinanceSummary(summaryData);
+      setExpenses(expensesData);
       setLastUpdate(new Date());
-      
+
       toast({
-        title: "Datos actualizados",
-        description: `Se cargaron ${incomeFromAppointments.length} ingresos de citas y ${processedExpenses.length} egresos manuales.`,
+        title: "Datos financieros actualizados",
+        description: `Se cargaron ${summaryData.summary.total_appointments} ingresos y ${expensesData.length} egresos.`,
       });
-      
+
     } catch (error) {
-      console.error('Error cargando transacciones:', error);
+      console.error('Error cargando datos financieros:', error);
       toast({
-        title: "Error",
-        description: "No se pudieron cargar los datos financieros: " + error.message,
+        title: "Error de Carga",
+        description: `No se pudieron cargar los datos: ${error.message}`,
         variant: "destructive"
       });
-      
-      // Fallback a datos locales en caso de error
-      const manualExpenses = JSON.parse(localStorage.getItem('clinic_expenses') || '[]');
-      setTransactions(manualExpenses.map(exp => ({...exp, amount: parseFloat(exp.amount), source: 'manual'})));
     } finally {
       setLoading(false);
     }
   };
 
-  const saveManualExpenses = (expenses) => {
-    localStorage.setItem('clinic_expenses', JSON.stringify(expenses));
-    loadTransactions(); // Recargar todas las transacciones
+  const handleAddOrEditExpense = async (e) => {
+    e.preventDefault();
+    const expenseData = { ...currentExpense, amount: parseFloat(currentExpense.amount) };
+
+    try {
+        if (editingExpenseId) {
+            await apiService.put(`expenses?id=${editingExpenseId}`, expenseData);
+            toast({ title: "Gasto actualizado", description: "El gasto ha sido modificado con éxito." });
+        } else {
+            await apiService.post('expenses', expenseData);
+            toast({ title: "Gasto agregado", description: "El nuevo gasto ha sido registrado." });
+        }
+        resetExpenseForm();
+        loadFinanceData();
+    } catch (error) {
+        toast({ title: "Error", description: `No se pudo guardar el gasto: ${error.message}`, variant: "destructive" });
+    }
   };
 
-  const handleAddOrEditExpense = (e) => {
-    e.preventDefault();
-    const manualExpenses = JSON.parse(localStorage.getItem('clinic_expenses') || '[]');
-    
-    if (editingExpenseId) {
-      const updatedExpenses = manualExpenses.map(exp => 
-        exp.id === editingExpenseId ? {...currentExpense, id: editingExpenseId} : exp
-      );
-      saveManualExpenses(updatedExpenses);
-      toast({
-        title: "Egreso Actualizado", 
-        description: "El egreso ha sido modificado."
-      });
-    } else {
-      const newExpense = {
-        ...currentExpense, 
-        id: `exp-${Date.now()}`,
-        type: 'egreso' // Asegurar que siempre sea egreso
-      };
-      saveManualExpenses([...manualExpenses, newExpense]);
-      toast({
-        title: "Egreso Agregado", 
-        description: "El nuevo egreso ha sido registrado."
-      });
+  const handleDeleteExpense = async (id) => {
+    try {
+        await apiService.delete(`expenses?id=${id}`);
+        toast({ title: "Gasto eliminado", description: "El gasto ha sido eliminado con éxito." });
+        loadFinanceData();
+    } catch (error) {
+        toast({ title: "Error", description: `No se pudo eliminar el gasto: ${error.message}`, variant: "destructive" });
     }
-    
+  };
+
+  const resetExpenseForm = () => {
     setShowExpenseForm(false);
-    setCurrentExpense({ 
-      description: '', 
-      amount: '', 
-      date: new Date().toISOString().split('T')[0], 
-      type: 'egreso',
-      category: ''
-    });
+    setCurrentExpense({ description: '', amount: '', date: new Date().toISOString().split('T')[0], category: '' });
     setEditingExpenseId(null);
   };
 
-  const handleDeleteExpense = (id) => {
-    const manualExpenses = JSON.parse(localStorage.getItem('clinic_expenses') || '[]');
-    saveManualExpenses(manualExpenses.filter(exp => exp.id !== id));
-    toast({
-      title: "Egreso Eliminado", 
-      description: "El egreso ha sido eliminado."
-    });
-  };
-
   const filterAndProcessTransactions = () => {
+    if (!financeSummary) return;
+
+    const allTransactions = [];
+
+    // Agregar ingresos de citas desde financeSummary
+    if (financeSummary.appointments && financeSummary.appointments.length > 0) {
+      financeSummary.appointments.forEach(appointment => {
+        allTransactions.push({
+          id: `appointment-${appointment.id}`,
+          date: appointment.date,
+          description: `Consulta: ${appointment.patient_name}`,
+          category: appointment.discipline_name || 'Consulta',
+          type: 'ingreso',
+          amount: parseFloat(appointment.cost || 0),
+          source: 'appointment',
+          professionalName: appointment.professional_name,
+          appointmentType: appointment.discipline_name
+        });
+      });
+    }
+
+    // Agregar gastos manuales desde expenses
+    expenses.forEach(expense => {
+      allTransactions.push({
+        id: `expense-${expense.id}`,
+        date: expense.date,
+        description: expense.description,
+        category: expense.category || 'Gasto',
+        type: 'egreso',
+        amount: parseFloat(expense.amount || 0),
+        source: 'manual'
+      });
+    });
+
+    // Filtrar por período de tiempo
     const now = new Date();
     let startDate, endDate;
 
@@ -173,10 +193,13 @@ const FinanceManager = () => {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
-    const filtered = transactions.filter(t => {
+    const filtered = allTransactions.filter(t => {
       const tDate = new Date(t.date);
       return tDate >= startDate && tDate <= endDate;
     });
+
+    // Ordenar por fecha (más reciente primero)
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     setFilteredTransactions(filtered);
   };
@@ -273,93 +296,116 @@ const FinanceManager = () => {
   const generateFinanceReportPDF = () => {
     const doc = new jsPDF();
     
-    // Encabezado
-    doc.setFontSize(18);
-    doc.text(`${clinicName} - Reporte Financiero`, 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Periodo: ${timePeriod === 'week' ? 'Semanal' : timePeriod === 'month' ? 'Mensual' : 'Anual'}`, 14, 30);
-    doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 14, 38);
-    if (lastUpdate) {
-      doc.text(`Última actualización: ${lastUpdate.toLocaleDateString('es-ES')} ${lastUpdate.toLocaleTimeString('es-ES')}`, 14, 46);
-    }
-
-    // Tabla de transacciones
-    const tableColumn = ["Fecha", "Descripción", "Categoría", "Tipo", "Monto (MXN)"];
-    const tableRows = [];
-
-    filteredTransactions.forEach(t => {
-      const transactionData = [
-        new Date(t.date).toLocaleDateString('es-ES'),
-        t.description,
-        t.category || 'N/A',
-        t.type === 'ingreso' ? 'Ingreso' : 'Egreso',
-        (t.type === 'ingreso' ? '+' : '-') + '$' + t.amount.toFixed(2)
-      ];
-      tableRows.push(transactionData);
-    });
-
-    doc.autoTable({
-      startY: 54,
-      head: [tableColumn],
-      body: tableRows,
-      theme: 'striped',
-      headStyles: { fillColor: [30, 30, 73] },
-      styles: { fontSize: 8 }
-    });
-    
-    let finalY = doc.lastAutoTable.finalY || 54;
-    finalY += 10;
-
-    // Resumen financiero
-    const totalIncome = filteredTransactions.filter(t => t.type === 'ingreso').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = filteredTransactions.filter(t => t.type === 'egreso').reduce((sum, t) => sum + t.amount, 0);
-    const netBalance = totalIncome - totalExpense;
-    
-    // Desglose por fuente
-    const incomeFromAppointments = filteredTransactions.filter(t => t.source === 'appointment').reduce((sum, t) => sum + t.amount, 0);
-    const manualExpenses = filteredTransactions.filter(t => t.source === 'manual' && t.type === 'egreso').reduce((sum, t) => sum + t.amount, 0);
-
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text('RESUMEN FINANCIERO', 14, finalY);
-    finalY += 8;
-    
-    doc.setFontSize(10);
-    doc.text(`Total Ingresos: $${totalIncome.toFixed(2)} MXN`, 14, finalY);
-    doc.text(`  - De citas pagadas: $${incomeFromAppointments.toFixed(2)} MXN`, 20, finalY + 6);
-    finalY += 14;
-    
-    doc.text(`Total Egresos: $${totalExpense.toFixed(2)} MXN`, 14, finalY);
-    doc.text(`  - Egresos manuales: $${manualExpenses.toFixed(2)} MXN`, 20, finalY + 6);
-    finalY += 14;
-    
-    doc.setFont(undefined, 'bold');
-    doc.text(`Balance Neto: $${netBalance.toFixed(2)} MXN`, 14, finalY);
-
-    doc.save(`reporte_financiero_${timePeriod}_${new Date().toISOString().split('T')[0]}.pdf`);
-    toast({ 
-      title: "Reporte PDF Generado", 
-      description: "El reporte financiero se ha descargado." 
-    });
-  };
-
-  const getFinancialSummary = () => {
-    const totalIncome = filteredTransactions.filter(t => t.type === 'ingreso').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = filteredTransactions.filter(t => t.type === 'egreso').reduce((sum, t) => sum + t.amount, 0);
-    const incomeFromAppointments = filteredTransactions.filter(t => t.source === 'appointment').reduce((sum, t) => sum + t.amount, 0);
-    const appointmentCount = filteredTransactions.filter(t => t.source === 'appointment').length;
-    
-    return {
-      totalIncome,
-      totalExpense,
-      netBalance: totalIncome - totalExpense,
-      incomeFromAppointments,
-      appointmentCount
+    // Agregar el logo en la parte superior izquierda
+    const logoImg = new Image();
+    logoImg.onload = function() {
+      doc.addImage(logoImg, 'JPEG', 14, 10, 28, 16);
+      
+      // Continuar con el resto del PDF después de cargar el logo
+      doc.setFontSize(18);
+      doc.text(`${clinicName} - Reporte Financiero`, 40, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Periodo: ${timePeriod === 'week' ? 'Semanal' : timePeriod === 'month' ? 'Mensual' : 'Anual'}`, 40, 30);
+      doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 40, 38);
+      
+      generateFinancePDFContent();
     };
+    
+    logoImg.onerror = function() {
+      // Si no se puede cargar el logo, continuar sin él
+      doc.setFontSize(18);
+      doc.text(`${clinicName} - Reporte Financiero`, 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Periodo: ${timePeriod === 'week' ? 'Semanal' : timePeriod === 'month' ? 'Mensual' : 'Anual'}`, 14, 30);
+      doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 14, 38);
+      
+      generateFinancePDFContent();
+    };
+    
+    logoImg.src = '/logo.jpeg';
+    
+    function generateFinancePDFContent() {
+      if (lastUpdate) {
+        doc.text(`Última actualización: ${lastUpdate.toLocaleDateString('es-ES')} ${lastUpdate.toLocaleTimeString('es-ES')}`, 14, 46);
+      }
+
+      // Tabla de transacciones
+      const tableColumn = ["Fecha", "Descripción", "Categoría", "Tipo", "Monto (MXN)"];
+      const tableRows = [];
+
+      filteredTransactions.forEach(t => {
+        const transactionData = [
+          new Date(t.date).toLocaleDateString('es-ES'),
+          t.description,
+          t.category || 'N/A',
+          t.type === 'ingreso' ? 'Ingreso' : 'Egreso',
+          (t.type === 'ingreso' ? '+' : '-') + '$' + t.amount.toFixed(2)
+        ];
+        tableRows.push(transactionData);
+      });
+
+      doc.autoTable({
+        startY: 54,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 30, 73] },
+        styles: { fontSize: 8 }
+      });
+      
+      let finalY = doc.lastAutoTable.finalY || 54;
+      finalY += 10;
+
+      // Resumen financiero
+      const totalIncome = filteredTransactions.filter(t => t.type === 'ingreso').reduce((sum, t) => sum + t.amount, 0);
+      const totalExpense = filteredTransactions.filter(t => t.type === 'egreso').reduce((sum, t) => sum + t.amount, 0);
+      const netBalance = totalIncome - totalExpense;
+      
+      // Desglose por fuente
+      const incomeFromAppointments = filteredTransactions.filter(t => t.source === 'appointment').reduce((sum, t) => sum + t.amount, 0);
+      const manualExpenses = filteredTransactions.filter(t => t.source === 'manual' && t.type === 'egreso').reduce((sum, t) => sum + t.amount, 0);
+
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text('RESUMEN FINANCIERO', 14, finalY);
+      finalY += 8;
+      
+      doc.setFontSize(10);
+      doc.text(`Total Ingresos: $${totalIncome.toFixed(2)} MXN`, 14, finalY);
+      doc.text(`  - De citas pagadas: $${incomeFromAppointments.toFixed(2)} MXN`, 20, finalY + 6);
+      finalY += 14;
+      
+      doc.text(`Total Egresos: $${totalExpense.toFixed(2)} MXN`, 14, finalY);
+      doc.text(`  - Egresos manuales: $${manualExpenses.toFixed(2)} MXN`, 20, finalY + 6);
+      finalY += 14;
+      
+      doc.setFont(undefined, 'bold');
+      doc.text(`Balance Neto: $${netBalance.toFixed(2)} MXN`, 14, finalY);
+
+      doc.save(`reporte_financiero_${timePeriod}_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast({ 
+        title: "Reporte PDF Generado", 
+        description: "El reporte financiero se ha descargado." 
+      });
+    }
   };
 
-  const summary = getFinancialSummary();
+  // Si no hay financeSummary, mostrar valores por defecto
+  const summary = financeSummary ? {
+    totalIncome: financeSummary.summary.total_income || 0,
+    totalExpense: financeSummary.summary.total_expenses || 0,
+    netBalance: financeSummary.summary.net_profit || 0,
+    appointmentCount: financeSummary.summary.total_appointments || 0,
+    incomeFromAppointments: financeSummary.summary.total_income || 0
+  } : {
+    totalIncome: 0,
+    totalExpense: 0,
+    netBalance: 0,
+    appointmentCount: 0,
+    incomeFromAppointments: 0
+  };
 
   if (loading) {
     return (
@@ -382,7 +428,7 @@ const FinanceManager = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Ingresos y Egresos</h1>
@@ -394,7 +440,7 @@ const FinanceManager = () => {
           )}
         </div>
         <div className="flex gap-2">
-          <Button onClick={loadTransactions} variant="outline" disabled={loading}>
+          <Button onClick={loadFinanceData} variant="outline" disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
@@ -403,13 +449,12 @@ const FinanceManager = () => {
               description: '', 
               amount: '', 
               date: new Date().toISOString().split('T')[0], 
-              type: 'egreso',
               category: ''
             }); 
             setEditingExpenseId(null); 
             setShowExpenseForm(true);
           }} className="button-primary-gradient">
-            <Plus className="w-4 h-4 mr-2" /> Nuevo Egreso
+            <Plus className="w-4 h-4 mr-2" /> Nuevo Gasto
           </Button>
           <Button onClick={generateFinanceReportPDF} variant="outline">
             <Download className="w-4 h-4 mr-2" /> Reporte PDF
@@ -561,7 +606,7 @@ const FinanceManager = () => {
           Transacciones Recientes ({filteredTransactions.length})
         </h2>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-muted/50">
               <tr>
                 <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Fecha</th>

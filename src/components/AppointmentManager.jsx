@@ -241,65 +241,92 @@ const AppointmentManager = () => {
     try {
       const doc = new jsPDF();
 
-      doc.setFontSize(22);
-      doc.setTextColor(40, 58, 90);
-      doc.text(clinicName, 105, 20, { align: 'center' });
+      // Agregar el logo en la parte superior izquierda
+      const logoImg = new Image();
+      logoImg.onload = function() {
+      doc.addImage(logoImg, 'JPEG', margin, yPos, 35, 20);
+        
+        // Continuar con el resto del PDF después de cargar el logo
+        doc.setFontSize(22);
+        doc.setTextColor(40, 58, 90);
+        doc.text(clinicName, 105, 20, { align: 'center' });
 
-      doc.setFontSize(12);
-      doc.setTextColor(100);
-      doc.text(`Folio de Cita: ${appointment.folio}`, 14, 40);
-      doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-ES')}`, 14, 48);
-
-      doc.setLineWidth(0.5);
-      doc.line(14, 55, 196, 55);
-
-      doc.setFontSize(16);
-      doc.setTextColor(40, 58, 90);
-      doc.text("Detalles de la Cita", 14, 65);
-
-      doc.setFontSize(11);
-      doc.setTextColor(50);
-      let yPos = 75;
-      const addDetail = (label, value) => {
-        doc.setFont(undefined, 'bold');
-        doc.text(label, 14, yPos);
-        doc.setFont(undefined, 'normal');
-        doc.text(value, 60, yPos);
-        yPos += 8;
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(`Folio de Cita: ${appointment.folio}`, 40, 40);
+        doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-ES')}`, 40, 48);
+        
+        generatePDFContent();
       };
-
-      addDetail("Paciente:", appointment.patient_name);
-      addDetail("Email:", appointment.patient_email || 'No disponible');
-      addDetail("Teléfono:", appointment.patient_phone || 'No disponible');
-      addDetail("Profesional:", appointment.professional_name);
-      addDetail("Disciplina:", appointment.professional_info?.discipline || 'No disponible');
-      addDetail("Fecha:", new Date(appointment.date).toLocaleDateString('es-ES'));
-      addDetail("Hora:", appointment.time);
-      addDetail("Tipo:", appointment.type);
-      addDetail("Costo:", `$${parseFloat(appointment.cost || 0).toFixed(2)} MXN`);
-      addDetail("Estado Pago:", getStatusLabel(appointment.payment_status, 'payment'));
-      addDetail("Estado General:", getStatusLabel(appointment.status));
       
-      if(appointment.notes) {
-          yPos += 4;
+      logoImg.onerror = function() {
+        // Si no se puede cargar el logo, continuar sin él
+        doc.setFontSize(22);
+        doc.setTextColor(40, 58, 90);
+        doc.text(clinicName, 105, 20, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(`Folio de Cita: ${appointment.folio}`, 14, 40);
+        doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-ES')}`, 14, 48);
+        
+        generatePDFContent();
+      };
+      
+      logoImg.src = '/logo.jpeg';
+      
+      function generatePDFContent() {
+        doc.setLineWidth(0.5);
+        doc.line(14, 55, 196, 55);
+
+        doc.setFontSize(16);
+        doc.setTextColor(40, 58, 90);
+        doc.text("Detalles de la Cita", 14, 65);
+
+        doc.setFontSize(11);
+        doc.setTextColor(50);
+        let yPos = 75;
+        const addDetail = (label, value) => {
           doc.setFont(undefined, 'bold');
-          doc.text("Notas:", 14, yPos);
-          yPos += 8;
+          doc.text(label, 14, yPos);
           doc.setFont(undefined, 'normal');
-          const notesLines = doc.splitTextToSize(appointment.notes, 180);
-          doc.text(notesLines, 14, yPos);
-          yPos += (notesLines.length * 6);
+          doc.text(value, 60, yPos);
+          yPos += 8;
+        };
+
+        addDetail("Paciente:", appointment.patient_name);
+        addDetail("Email:", appointment.patient_email || 'No disponible');
+        addDetail("Teléfono:", appointment.patient_phone || 'No disponible');
+        addDetail("Profesional:", appointment.professional_name);
+        addDetail("Disciplina:", appointment.professional_info?.discipline || 'No disponible');
+        addDetail("Fecha:", new Date(appointment.date).toLocaleDateString('es-ES'));
+        addDetail("Hora:", appointment.time);
+        addDetail("Tipo:", appointment.type);
+        addDetail("Costo:", `$${parseFloat(appointment.cost || 0).toFixed(2)} MXN`);
+        addDetail("Estado Pago:", getStatusLabel(appointment.payment_status, 'payment'));
+        addDetail("Estado General:", getStatusLabel(appointment.status));
+        
+        if(appointment.notes) {
+            yPos += 4;
+            doc.setFont(undefined, 'bold');
+            doc.text("Notas:", 14, yPos);
+            yPos += 8;
+            doc.setFont(undefined, 'normal');
+            const notesLines = doc.splitTextToSize(appointment.notes, 180);
+            doc.text(notesLines, 14, yPos);
+            yPos += (notesLines.length * 6);
+        }
+
+        doc.line(14, yPos + 5, 196, yPos + 5);
+        yPos += 15;
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text("Gracias por su preferencia.", 105, yPos, { align: 'center' });
+        doc.text(`Contacto: ${localStorage.getItem('clinic_phone') || '(123) 456-7890'}`, 105, yPos + 5, { align: 'center' });
+
+        doc.save(`cita_${appointment.folio}_${appointment.patient_name.replace(/\s/g, '_')}.pdf`);
+        toast({ title: "Reporte PDF Generado", description: "El reporte de la cita se ha descargado." });
       }
-
-      doc.line(14, yPos + 5, 196, yPos + 5);
-      yPos += 15;
-      doc.setFontSize(10);
-      doc.setTextColor(150);
-      doc.text("Gracias por su preferencia.", 105, yPos, { align: 'center' });
-      doc.text(`Contacto: ${localStorage.getItem('clinic_phone') || '(123) 456-7890'}`, 105, yPos + 5, { align: 'center' });
-
-      doc.save(`cita_${appointment.folio}_${appointment.patient_name.replace(/\s/g, '_')}.pdf`);
-      toast({ title: "Reporte PDF Generado", description: "El reporte de la cita se ha descargado." });
     } catch (error) {
       console.error('Error generando PDF:', error);
       toast({
@@ -407,7 +434,7 @@ const AppointmentManager = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[1000px]">
               <thead className="bg-muted/50 hidden md:table-header-group">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Folio</th>

@@ -39,7 +39,7 @@ const PWAUpdateNotification = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-card-foreground text-sm">Actualización disponible</h3>
-                  <p className="text-xs text-muted-foreground">Nueva versión de la aplicación</p>
+                  <p className="text-xs text-muted-foreground">Se limpiará la caché y datos locales</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={handleDismiss}>

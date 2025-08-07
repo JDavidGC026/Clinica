@@ -4,6 +4,7 @@ import { FileText, Download, Calendar, Users, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import jsPDF from 'jspdf';
+// Logo se carga dinámicamente desde /logo.jpeg
 
 const ReportManager = () => {
   const [reportType, setReportType] = useState('appointments');
@@ -15,42 +16,61 @@ const ReportManager = () => {
     const clinicName = localStorage.getItem('clinic_name') || 'MultiClinic';
 
     const doc = new jsPDF();
+    const margin = 14;
+    let yPos = 10;
 
-    doc.setFontSize(18);
-    doc.text(`${clinicName} - Reporte de Citas`, 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 14, 30);
-
-    let yPos = 40;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text("Paciente", 14, yPos);
-    doc.text("Profesional", 60, yPos);
-    doc.text("Fecha", 110, yPos);
-    doc.text("Hora", 140, yPos);
-    doc.text("Estado", 170, yPos);
-    yPos += 7;
-    doc.setLineWidth(0.5);
-    doc.line(14, yPos-2, 196, yPos-2);
-    doc.setFont(undefined, 'normal');
-
-    appointments.forEach(apt => {
-      if (yPos > 270) { // Page break
-        doc.addPage();
-        yPos = 20;
-      }
-      const professional = professionals.find(p => p.id.toString() === apt.professionalId) || { name: 'N/A' };
-      doc.text(apt.patientName.substring(0,25), 14, yPos);
-      doc.text(professional.name.substring(0,20), 60, yPos);
-      doc.text(new Date(apt.date).toLocaleDateString('es-ES'), 110, yPos);
-      doc.text(apt.time, 140, yPos);
-      doc.text(apt.status, 170, yPos);
+    // Agregar el logo
+    const logoImg = new Image();
+    logoImg.onload = function() {
+      doc.addImage(logoImg, 'JPEG', margin, yPos, 42, 24);
+      generateReportContent();
+    };
+    
+    logoImg.onerror = function() {
+      // Si no se puede cargar el logo, continuar sin él
+      generateReportContent();
+    };
+    
+    logoImg.src = '/logo.jpeg';
+    
+    function generateReportContent() {
+      // Continuar con el resto del PDF
+      doc.setFontSize(18);
+      doc.text(`${clinicName} - Reporte de Citas`, 40, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`, 40, 30);
+      
+      let yPos = 50;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text("Paciente", 14, yPos);
+      doc.text("Profesional", 60, yPos);
+      doc.text("Fecha", 110, yPos);
+      doc.text("Hora", 140, yPos);
+      doc.text("Estado", 170, yPos);
       yPos += 7;
-    });
+      doc.setLineWidth(0.5);
+      doc.line(14, yPos-2, 196, yPos-2);
+      doc.setFont(undefined, 'normal');
 
-    doc.save('reporte_citas.pdf');
-    toast({ title: "Reporte Generado", description: "El reporte de citas se ha descargado." });
+      appointments.forEach(apt => {
+        if (yPos > 270) { // Page break
+          doc.addPage();
+          yPos = 20;
+        }
+        const professional = professionals.find(p => p.id.toString() === apt.professionalId) || { name: 'N/A' };
+        doc.text(apt.patientName.substring(0,25), 14, yPos);
+        doc.text(professional.name.substring(0,20), 60, yPos);
+        doc.text(new Date(apt.date).toLocaleDateString('es-ES'), 110, yPos);
+        doc.text(apt.time, 140, yPos);
+        doc.text(apt.status, 170, yPos);
+        yPos += 7;
+      });
+
+      doc.save('reporte_citas.pdf');
+      toast({ title: "Reporte Generado", description: "El reporte de citas se ha descargado." });
+    }
   };
   
   const handleGenerateReport = () => {

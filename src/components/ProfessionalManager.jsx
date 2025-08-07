@@ -189,21 +189,21 @@ const ProfessionalManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Profesionales</h1>
-          <p className="text-muted-foreground mt-1">Administra el equipo de profesionales de la clínica</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">Gestión de Profesionales</h1>
+          <p className="text-muted-foreground mt-1 truncate">Administra el equipo de profesionales de la clínica</p>
         </div>
         <Button
           onClick={() => { setEditingProfessional(null); setShowForm(true); }}
-          className="w-full sm:w-auto button-primary-gradient"
+          className="w-full sm:w-auto button-primary-gradient flex-shrink-0"
         >
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Profesional
         </Button>
       </div>
 
-      <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
+      <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50 min-w-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
           <input
@@ -216,7 +216,7 @@ const ProfessionalManager = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProfessionals.map((professional) => {
           // Asegurarse de que disciplineId esté correctamente mapeado
           const disciplineId = professional.disciplineId || professional.discipline_id;
@@ -234,15 +234,15 @@ const ProfessionalManager = () => {
                     <div className="w-12 h-12 bg-gradient-to-r from-primary to-accent-alt rounded-full flex items-center justify-center shrink-0">
                       <User className="w-6 h-6 text-white" />
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-semibold text-card-foreground truncate">{professional.name}</h3>
-                      <p className="text-sm text-muted-foreground truncate flex items-center">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-lg font-semibold text-card-foreground break-words">{professional.name}</h3>
+                      <p className="text-sm text-muted-foreground break-words flex items-center">
                         <Briefcase className="w-3 h-3 mr-1.5 text-muted-foreground shrink-0" />
                         {getDisciplineName(disciplineId)}
                       </p>
                     </div>
                   </div>
-                  <div className="flex space-x-1">
+                  <div className="flex-shrink-0 flex space-x-1">
                     <Button size="sm" variant="outline" onClick={() => { 
                       // Asegurarse de que disciplineId esté correctamente mapeado para el formulario
                       const profToEdit = {

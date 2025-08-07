@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Mail, Phone, Clock, Briefcase, Key } from 'lucide-react';
+import { X, User, Mail, Phone, Clock, Briefcase, Key, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import apiService from '@/services/ApiService';
 
 const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => {
+  const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     disciplineId: '',
+    role_id: '',
     password: '',
     schedule: {
       monday: { start: '', end: '', available: false },
@@ -47,10 +50,22 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
       setFormData({
         ...professional,
         password: '', // No mostrar contraseña existente
+        role_id: professional.role_id || '',
         schedule: schedule
       });
     }
+
+    loadRoles();
   }, [professional]);
+
+  const loadRoles = async () => {
+    try {
+      const rolesData = await apiService.getRoles();
+      setRoles(rolesData || []);
+    } catch (error) {
+      console.error('Error cargando roles:', error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -185,23 +200,53 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
 
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Contraseña {professional ? '(dejar vacío para mantener)' : '*'}
+                  Rol del Sistema *
                 </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
+                <select
+                  name="role_id"
+                  value={formData.role_id}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder={professional ? "Nueva contraseña (opcional)" : "Contraseña para login"}
-                  required={!professional}
-                />
-                {!professional && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    El profesional podrá hacer login con su email y esta contraseña
-                  </p>
-                )}
+                  required
+                >
+                  <option value="">Seleccionar rol</option>
+                  {roles && roles.map(role => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
+
+            <div className="w-full">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
+                Contraseña {professional ? '(dejar vacío para mantener)' : '*'}
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                placeholder={professional ? "Nueva contraseña (opcional)" : "Contraseña para login"}
+                required={!professional}
+              />
+              {!professional && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  El profesional podrá hacer login con su email y esta contraseña
+                </p>
+              )}
+            </div>
+
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+              <h4 className="font-medium text-green-900 dark:text-green-100 mb-2 flex items-center">
+                <Shield className="w-4 h-4 mr-2" />
+                Roles y Permisos
+              </h4>
+              <p className="text-sm text-green-800 dark:text-green-200">
+                Al asignar un rol específico, el profesional tendrá acceso a las funciones correspondientes del sistema además del Portal Profesional básico.
+              </p>
             </div>
           </div>
 

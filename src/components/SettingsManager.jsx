@@ -181,6 +181,58 @@ const SettingsManager = () => {
     });
   };
 
+  // Funciones para configuraciones rápidas
+  const setHostingerConfig = () => {
+    setEmailConfig({
+      smtp_host: 'smtp.hostinger.com',
+      smtp_port: '465',
+      smtp_secure: 'ssl',
+      smtp_auth: '1',
+      smtp_user: 'soporte@grupodelux.dvguzman.com',
+      smtp_password: '', // Usuario debe ingresar su contraseña
+      from_email: 'soporte@grupodelux.dvguzman.com',
+      from_name: 'Grupo Médico Delux - Soporte'
+    });
+    toast({
+      title: '🟠 Configuración Hostinger aplicada',
+      description: 'Ahora debes ingresar tu contraseña de correo Hostinger.',
+    });
+  };
+
+  const setGmailConfig = () => {
+    setEmailConfig({
+      smtp_host: 'smtp.gmail.com',
+      smtp_port: '587',
+      smtp_secure: 'tls',
+      smtp_auth: '1',
+      smtp_user: '', // Usuario debe ingresar su email
+      smtp_password: '', // Usuario debe ingresar contraseña de aplicación
+      from_email: '',
+      from_name: 'Grupo Médico Delux'
+    });
+    toast({
+      title: '📧 Configuración Gmail aplicada',
+      description: 'Ahora debes ingresar tu email y contraseña de aplicación de Gmail.',
+    });
+  };
+
+  const setOutlookConfig = () => {
+    setEmailConfig({
+      smtp_host: 'smtp-mail.outlook.com',
+      smtp_port: '587',
+      smtp_secure: 'tls',
+      smtp_auth: '1',
+      smtp_user: '', // Usuario debe ingresar su email
+      smtp_password: '', // Usuario debe ingresar su contraseña
+      from_email: '',
+      from_name: 'Grupo Médico Delux'
+    });
+    toast({
+      title: '🔵 Configuración Outlook aplicada',
+      description: 'Ahora debes ingresar tu email y contraseña de Outlook.',
+    });
+  };
+
   const handleSendTestEmail = async () => {
     if (!testEmail) {
       toast({
@@ -194,7 +246,7 @@ const SettingsManager = () => {
     if (!emailConfig.smtp_user || !emailConfig.smtp_password) {
       toast({
         title: 'Configuración incompleta',
-        description: 'Por favor configura las credenciales SMTP de Gmail primero.',
+        description: 'Por favor configura las credenciales SMTP primero.',
         variant: 'destructive'
       });
       return;
@@ -226,7 +278,7 @@ const SettingsManager = () => {
     } catch (error) {
       toast({
         title: 'Error al enviar email',
-        description: error.message || 'Verifica las credenciales SMTP de Gmail.',
+        description: error.message || 'Verifica las credenciales SMTP.',
         variant: 'destructive'
       });
     } finally {
@@ -370,20 +422,57 @@ const SettingsManager = () => {
               <div>
                 <h2 className="text-xl font-semibold text-card-foreground mb-4 flex items-center">
                   <Server className="w-5 h-5 mr-2 text-primary" />
-                  Configuración de Gmail SMTP
+                  Configuración de Email SMTP
                   {isLoadingConfig && <RefreshCw className="w-4 h-4 ml-2 animate-spin text-primary" />}
                 </h2>
+                {/* Configuraciones preestablecidas */}
+                <div className="mb-6">
+                  <h4 className="font-medium text-card-foreground mb-3">⚡ Configuraciones Rápidas</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setHostingerConfig()}
+                      className="p-4 h-auto flex flex-col items-start space-y-1"
+                    >
+                      <div className="font-medium text-sm">🟠 Hostinger</div>
+                      <div className="text-xs text-muted-foreground">SSL - Puerto 465</div>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setGmailConfig()}
+                      className="p-4 h-auto flex flex-col items-start space-y-1"
+                    >
+                      <div className="font-medium text-sm">📧 Gmail</div>
+                      <div className="text-xs text-muted-foreground">TLS - Puerto 587</div>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setOutlookConfig()}
+                      className="p-4 h-auto flex flex-col items-start space-y-1"
+                    >
+                      <div className="font-medium text-sm">🔵 Outlook</div>
+                      <div className="text-xs text-muted-foreground">TLS - Puerto 587</div>
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4 border border-blue-200 dark:border-blue-800">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📧 Configuración de Gmail</h4>
-                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-                    Para usar Gmail SMTP, necesitas generar una <strong>"Contraseña de aplicación"</strong>:
-                  </p>
-                  <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
-                    <li>1. Ve a <a href="https://myaccount.google.com/security" target="_blank" className="underline">Configuración de seguridad de Google</a></li>
-                    <li>2. Habilita "Verificación en 2 pasos"</li>
-                    <li>3. Genera una "Contraseña de aplicación" específica</li>
-                    <li>4. Usa esa contraseña aquí (no tu contraseña normal)</li>
-                  </ol>
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📧 Configuración de Email SMTP</h4>
+                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+                    <div>
+                      <strong>Para Hostinger:</strong> Usa las credenciales de tu correo personalizado (soporte@grupodelux.dvguzman.com)
+                    </div>
+                    <div>
+                      <strong>Para Gmail:</strong> Necesitas generar una "Contraseña de aplicación" en 
+                      <a href="https://myaccount.google.com/security" target="_blank" className="underline ml-1">Configuración de seguridad</a>
+                    </div>
+                    <div>
+                      <strong>Para Outlook:</strong> Usa tu email y contraseña normales
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>

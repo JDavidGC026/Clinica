@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Briefcase, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Briefcase, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -22,19 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-const initialDisciplines = [
-  { id: 'medicina-general', name: 'Medicina General' },
-  { id: 'pediatria', name: 'Pediatría' },
-  { id: 'ginecologia', name: 'Ginecología' },
-  { id: 'traumatologia-ortopedia', name: 'Traumatología y Ortopedia' },
-  { id: 'urologia', name: 'Urología' },
-  { id: 'medicina-interna', name: 'Medicina Interna' },
-  { id: 'gastroenterologia', name: 'Gastroenterología' },
-  { id: 'nutricion', name: 'Nutrición' },
-  { id: 'dermatologia', name: 'Dermatología' },
-  { id: 'psicologia-clinica', name: 'Psicología Clínica' },
-];
+import apiService from '@/services/ApiService';
 
 
 const DisciplineManager = () => {
@@ -44,7 +32,10 @@ const DisciplineManager = () => {
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [editingDiscipline, setEditingDiscipline] = useState(null);
   const [disciplineName, setDisciplineName] = useState('');
-  const [disciplineId, setDisciplineId] = useState('');
+  const [disciplineDescription, setDisciplineDescription] = useState('');
+  const [disciplineActive, setDisciplineActive] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadDisciplines();
@@ -54,19 +45,31 @@ const DisciplineManager = () => {
     filterDisciplines();
   }, [disciplines, searchTerm]);
 
-  const loadDisciplines = () => {
-    const saved = localStorage.getItem('clinic_disciplines');
-    if (saved) {
-      setDisciplines(JSON.parse(saved));
-    } else {
-      localStorage.setItem('clinic_disciplines', JSON.stringify(initialDisciplines));
-      setDisciplines(initialDisciplines);
+  const loadDisciplines = async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getDisciplines();
+      setDisciplines(data || []);
+    } catch (error) {
+      console.error('Error cargando disciplinas:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las disciplinas: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const saveDisciplines = (newDisciplines) => {
-    localStorage.setItem('clinic_disciplines', JSON.stringify(newDisciplines));
-    setDisciplines(newDisciplines);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDisciplines();
+    setRefreshing(false);
+    toast({
+      title: "Actualizado",
+      description: "Lista de disciplinas actualizada",
+    });
   };
 
   const filterDisciplines = () => {
@@ -82,65 +85,123 @@ const DisciplineManager = () => {
   const handleOpenForm = (discipline = null) => {
     setEditingDiscipline(discipline);
     setDisciplineName(discipline ? discipline.name : '');
-    setDisciplineId(discipline ? discipline.id : '');
+    setDisciplineDescription(discipline ? discipline.description || '' : '');
+    setDisciplineActive(discipline ? discipline.active !== 0 : true);
     setShowFormDialog(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!disciplineName.trim()) {
-      toast({ title: "Error", description: "El nombre de la disciplina no puede estar vacío.", variant: "destructive" });
-      return;
-    }
-
-    if (editingDiscipline) {
-      const updatedDisciplines = disciplines.map(d =>
-        d.id === editingDiscipline.id ? { ...d, name: disciplineName } : d
-      );
-      saveDisciplines(updatedDisciplines);
-      toast({ title: "Disciplina actualizada", description: "Los cambios han sido guardados." });
-    } else {
-      const newId = disciplineName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
-      const newDiscipline = { id: newId, name: disciplineName };
-      saveDisciplines([...disciplines, newDiscipline]);
-      toast({ title: "Disciplina agregada", description: "La nueva disciplina ha sido registrada." });
-    }
-    setShowFormDialog(false);
-    setDisciplineName('');
-    setDisciplineId('');
-  };
-
-  const handleDeleteDiscipline = (id) => {
-    const professionals = JSON.parse(localStorage.getItem('clinic_professionals') || '[]');
-    const isDisciplineInUse = professionals.some(prof => prof.disciplineId === id);
-
-    if (isDisciplineInUse) {
-      toast({
-        title: "Error al eliminar",
-        description: "No se puede eliminar la disciplina porque está asignada a uno o más profesionales.",
-        variant: "destructive",
+      toast({ 
+        title: "Error", 
+        description: "El nombre de la disciplina no puede estar vacío.", 
+        variant: "destructive" 
       });
       return;
     }
 
-    saveDisciplines(disciplines.filter(d => d.id !== id));
-    toast({ title: "Disciplina eliminada", description: "La disciplina ha sido eliminada." });
+    try {
+      setLoading(true);
+      
+      if (editingDiscipline) {
+        // Actualizar disciplina existente
+        const updateData = {
+          name: disciplineName,
+          description: disciplineDescription,
+          active: disciplineActive ? 1 : 0
+        };
+        
+        await apiService.updateDiscipline(editingDiscipline.id, updateData);
+        toast({ 
+          title: "Disciplina actualizada", 
+          description: "Los cambios han sido guardados." 
+        });
+      } else {
+        // Crear nueva disciplina
+        const newDiscipline = {
+          name: disciplineName,
+          description: disciplineDescription,
+          active: disciplineActive ? 1 : 0
+        };
+        
+        await apiService.createDiscipline(newDiscipline);
+        toast({ 
+          title: "Disciplina agregada", 
+          description: "La nueva disciplina ha sido registrada." 
+        });
+      }
+      
+      // Recargar disciplinas
+      await loadDisciplines();
+      
+      // Cerrar dialog
+      setShowFormDialog(false);
+      setDisciplineName('');
+      setDisciplineDescription('');
+      setDisciplineActive(true);
+      
+    } catch (error) {
+      console.error('Error guardando disciplina:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la disciplina: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDiscipline = async (id) => {
+    try {
+      setLoading(true);
+      await apiService.deleteDiscipline(id);
+      toast({ 
+        title: "Disciplina eliminada", 
+        description: "La disciplina ha sido eliminada." 
+      });
+      await loadDisciplines();
+    } catch (error) {
+      console.error('Error eliminando disciplina:', error);
+      toast({
+        title: "Error al eliminar",
+        description: error.message.includes('in use') 
+          ? "No se puede eliminar la disciplina porque está asignada a uno o más profesionales."
+          : "No se pudo eliminar la disciplina: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Disciplinas</h1>
-          <p className="text-muted-foreground mt-1">Administra las especialidades médicas de la clínica</p>
+          <p className="text-muted-foreground mt-1">Crea, edita y administra las disciplinas de la clínica</p>
         </div>
-        <Button
-          onClick={() => handleOpenForm()}
-          className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Disciplina
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Actualizando...' : 'Actualizar'}
+          </Button>
+          <Button
+            onClick={() => handleOpenForm()}
+            disabled={loading}
+            className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Disciplina
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
@@ -162,22 +223,43 @@ const DisciplineManager = () => {
             key={discipline.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-xl shadow-lg p-6 card-hover flex flex-col justify-between border border-border/50"
+            className="bg-card rounded-xl shadow-lg p-6 card-hover border border-border/50"
           >
-            <div>
-              <div className="flex items-center mb-3">
-                <Briefcase className="w-6 h-6 mr-3 text-primary" />
-                <h3 className="text-lg font-semibold text-card-foreground truncate">{discipline.name}</h3>
+            <div className="flex items-start justify-between mb-4 gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center">
+                  <Briefcase className="w-6 h-6 mr-3 text-primary" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-card-foreground break-words">{discipline.name}</h3>
+                    {discipline.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{discipline.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="ml-9 flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">ID: {discipline.id}</p>
+                  <span className={`px-2 py-1 text-xs rounded-full ${discipline.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {discipline.active ? 'Activa' : 'Inactiva'}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">ID: {discipline.id}</p>
-            </div>
-            <div className="mt-4 flex space-x-2 justify-end">
-              <Button size="sm" variant="outline" onClick={() => handleOpenForm(discipline)}>
+              <div className="flex-shrink-0 flex space-x-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => handleOpenForm(discipline)}
+                disabled={loading}
+              >
                 <Edit className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Editar</span>
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructiveOutline" className="text-destructive hover:text-destructive/90">
+                  <Button 
+                    size="sm" 
+                    variant="destructiveOutline" 
+                    className="text-destructive hover:text-destructive/90"
+                    disabled={loading}
+                  >
                     <Trash2 className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Eliminar</span>
                   </Button>
                 </AlertDialogTrigger>
@@ -190,12 +272,17 @@ const DisciplineManager = () => {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDeleteDiscipline(discipline.id)} className="bg-destructive hover:bg-destructive/90">
+                    <AlertDialogAction 
+                      onClick={() => handleDeleteDiscipline(discipline.id)} 
+                      className="bg-destructive hover:bg-destructive/90"
+                      disabled={loading}
+                    >
                       Eliminar
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              </div>
             </div>
           </motion.div>
         ))}
@@ -223,15 +310,45 @@ const DisciplineManager = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="name" className="text-right col-span-1 text-muted-foreground">
-                  Nombre
+                  Nombre*
                 </label>
                 <input
                   id="name"
                   value={disciplineName}
                   onChange={(e) => setDisciplineName(e.target.value)}
                   className="col-span-3 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  placeholder="Nombre de la disciplina"
                   required
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="description" className="text-right col-span-1 text-muted-foreground">
+                  Descripción
+                </label>
+                <textarea
+                  id="description"
+                  value={disciplineDescription}
+                  onChange={(e) => setDisciplineDescription(e.target.value)}
+                  className="col-span-3 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  placeholder="Descripción opcional"
+                  rows="3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="active" className="text-right col-span-1 text-muted-foreground">
+                  Estado
+                </label>
+                <div className="col-span-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={disciplineActive}
+                      onChange={(e) => setDisciplineActive(e.target.checked)}
+                      className="w-4 h-4 text-primary bg-background border-input rounded focus:ring-ring focus:ring-2"
+                    />
+                    <span className="text-sm text-foreground">Disciplina activa</span>
+                  </label>
+                </div>
               </div>
               {editingDiscipline && (
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -240,7 +357,7 @@ const DisciplineManager = () => {
                   </label>
                   <input
                     id="id"
-                    value={disciplineId}
+                    value={editingDiscipline.id}
                     className="col-span-3 px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground"
                     disabled
                   />
@@ -251,8 +368,12 @@ const DisciplineManager = () => {
               <DialogClose asChild>
                 <Button type="button" variant="outline">Cancelar</Button>
               </DialogClose>
-              <Button type="submit" className="bg-gradient-to-r from-primary to-accent-alt hover:opacity-90">
-                {editingDiscipline ? 'Guardar Cambios' : 'Crear Disciplina'}
+              <Button 
+                type="submit" 
+                className="bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
+                disabled={loading}
+              >
+                {loading ? 'Guardando...' : (editingDiscipline ? 'Guardar Cambios' : 'Crear Disciplina')}
               </Button>
             </DialogFooter>
           </form>
