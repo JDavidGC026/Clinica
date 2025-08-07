@@ -29,7 +29,7 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
     professionalName: '',
     date: '',
     time: '',
-    type: 'consulta-inicial',
+    type: 'Consulta inicial',
     notes: '',
     status: 'programada',
     paymentStatus: 'pendiente',
@@ -107,6 +107,10 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
         setProfessionals(professionalsData);
         setDisciplines(disciplinesData);
         setPatients(patientsData);
+
+        // Ahora que los datos están cargados, procesamos la cita
+        processAppointment(appointment, professionalsData, patientsData);
+
       } catch (error) {
         console.error('Error cargando datos para el formulario:', error);
         toast({
@@ -123,44 +127,65 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
     };
     
     loadData();
+  }, [appointment]);
 
+  const processAppointment = (appointment, professionalsData, patientsData) => {
     if (appointment) {
-      // CORRECCIÓN PRINCIPAL: Usar fecha local sin conversión de zona horaria
       const localDate = createLocalDate(appointment.date);
       
-      console.log('📅 Procesando fecha de cita:', {
-        original: appointment.date,
-        processed: localDate,
-        type: typeof appointment.date
-      });
-      
+      // Mapear correctamente las propiedades de snake_case a camelCase
       setFormData({
-        ...appointment,
-        date: localDate, // Usar fecha procesada correctamente
-        professionalId: appointment.professionalId || appointment.psychologistId,
-        professionalName: appointment.professionalName || appointment.psychologistName,
+        patientId: appointment.patient_id || appointment.patientId || '',
+        patientName: appointment.patient_name || appointment.patientName || '',
+        patientEmail: appointment.patient_email || appointment.patientEmail || '',
+        patientPhone: appointment.patient_phone || appointment.patientPhone || '',
+        professionalId: appointment.professional_id || appointment.professionalId || appointment.psychologist_id || appointment.psychologistId || '',
+        professionalName: appointment.professional_name || appointment.professionalName || appointment.psychologist_name || appointment.psychologistName || '',
+        date: localDate,
+        time: appointment.time || '',
+        type: appointment.type || 'Consulta inicial',
+        notes: appointment.notes || '',
+        status: appointment.status || 'programada',
+        paymentStatus: appointment.payment_status || appointment.paymentStatus || 'pendiente',
         cost: appointment.cost || '',
-        paymentStatus: appointment.paymentStatus || 'pendiente',
         folio: appointment.folio || ''
       });
 
-      // Buscar y establecer paciente seleccionado
-      if (appointment.patientId) {
-        const patient = patientsData?.find(p => p.id.toString() === appointment.patientId.toString());
+      // Buscar y seleccionar el paciente correcto
+      const patientId = appointment.patient_id || appointment.patientId;
+      if (patientId && patientsData) {
+        const patient = patientsData.find(p => p.id.toString() === patientId.toString());
         if (patient) {
           setSelectedPatient(patient);
+          console.log('🔍 Paciente encontrado y seleccionado:', patient.name);
+        } else {
+          console.warn('⚠️ No se encontró paciente con ID:', patientId);
         }
       }
 
-      // Buscar y establecer profesional seleccionado
-      if (appointment.professionalId) {
-        const professional = professionalsData?.find(p => p.id.toString() === appointment.professionalId.toString());
+      // Buscar y seleccionar el profesional correcto
+      const professionalId = appointment.professional_id || appointment.professionalId || appointment.psychologist_id || appointment.psychologistId;
+      if (professionalId && professionalsData) {
+        const professional = professionalsData.find(p => p.id.toString() === professionalId.toString());
         if (professional) {
           setSelectedProfessional(professional);
+          console.log('🔍 Profesional encontrado y seleccionado:', professional.name);
+        } else {
+          console.warn('⚠️ No se encontró profesional con ID:', professionalId);
         }
       }
+      
+      console.log('📝 Datos de cita procesados:', {
+        original: appointment,
+        mapped: {
+          patientId: appointment.patient_id || appointment.patientId,
+          patientName: appointment.patient_name || appointment.patientName,
+          professionalId: professionalId,
+          professionalName: appointment.professional_name || appointment.professionalName,
+          paymentStatus: appointment.payment_status || appointment.paymentStatus
+        }
+      });
     } else {
-      // Para citas nuevas, usar fecha actual en México
       const today = getTodayDateInMexico();
       setFormData(prev => ({ 
         ...prev, 
@@ -168,7 +193,7 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
         folio: generateFolio() 
       }));
     }
-  }, [appointment]);
+  };
 
   const generateFolio = () => {
     const prefix = "GMD"; // Grupo Médico Delux
@@ -525,9 +550,15 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Tipo de Consulta *</label>
-                <select name="type" value={formData.type} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required>
-                  {appointmentTypes.map(type => (<option key={type.value} value={type.value}>{type.label}</option>))}
-                </select>
+                <input
+                  type="text"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  placeholder="Ej: Consulta inicial, Terapia de pareja, etc."
+                  required
+                />
               </div>
             </div>
           </div>

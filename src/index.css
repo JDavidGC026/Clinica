@@ -126,3 +126,520 @@ body {
 .button-primary-gradient:hover {
   opacity: 0.9;
 }
+
+/* Custom scrollbar para el menú lateral */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* ================================
+   MEJORAS PARA DISPOSITIVOS MÓVILES
+   ================================ */
+
+/* Asegurar que el scroll funcione en todos los navegadores */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Contenedor principal responsive */
+.main-container {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh; /* Usar viewport dinámico en móviles */
+}
+
+/* Sidebar móvil mejorado */
+.mobile-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  height: 100dvh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Overlay para móvil */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+}
+
+/* Header del sidebar móvil */
+.mobile-sidebar-header {
+  flex-shrink: 0;
+  margin-bottom: 2rem;
+}
+
+/* Navegación con scroll en móvil */
+.mobile-nav-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.5rem;
+  margin-right: -1rem;
+}
+
+/* Footer del sidebar */
+.mobile-sidebar-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+/* Contenido principal responsive */
+.main-content {
+  flex: 1;
+  overflow: auto;
+  min-width: 0; /* Permite que el contenido se reduzca */
+}
+
+/* Mejoras para pantallas pequeñas */
+@media (max-width: 768px) {
+  .mobile-sidebar {
+    width: 100vw;
+    max-width: 320px;
+  }
+  
+  /* Padding más pequeño en móvil */
+  .main-content {
+    padding: 1rem;
+  }
+  
+  /* Botones más grandes para toque */
+  .mobile-nav-button {
+    padding: 0.875rem 1rem;
+    margin-bottom: 0.5rem;
+    min-height: 48px;
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  /* Logo más pequeño en móvil */
+  .mobile-logo {
+    width: 100px !important;
+    height: 75px !important;
+  }
+  
+  /* Títulos más pequeños */
+  .mobile-title {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* Mejoras para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .mobile-nav-button {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+  
+  .mobile-title {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Scroll suave en toda la aplicación */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Mejorar toque en móviles */
+@media (hover: none) and (pointer: coarse) {
+  .mobile-nav-button:hover {
+    transform: none;
+  }
+  
+  .mobile-nav-button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Asegurar que los modales funcionen bien en móvil */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* Mejorar tablas en móvil */
+@media (max-width: 768px) {
+  .responsive-table {
+    font-size: 0.875rem;
+  }
+  
+  .responsive-table th,
+  .responsive-table td {
+    padding: 0.5rem 0.25rem;
+  }
+}
+
+/* Botón de menú más visible */
+.menu-toggle-button {
+  position: sticky;
+  top: 1rem;
+  z-index: 10;
+  margin-bottom: 1rem;
+}
+
+/* Animaciones suaves para móvil */
+.mobile-slide-enter {
+  transform: translateX(-100%);
+}
+
+.mobile-slide-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-in-out;
+}
+
+.mobile-slide-exit {
+  transform: translateX(0);
+}
+
+.mobile-slide-exit-active {
+  transform: translateX(-100%);
+  transition: transform 300ms ease-in-out;
+}
+
+/* ================================
+   CORRECCIÓN ESPECÍFICA DEL SCROLL
+   ================================ */
+
+/* Forzar scroll en el contenedor del menú */
+.sidebar-menu-scroll {
+  height: calc(100vh - 300px); /* Altura específica */
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* En móvil, usar altura completa disponible */
+@media (max-width: 1024px) {
+  .sidebar-menu-scroll {
+    height: calc(100vh - 280px);
+    height: calc(100dvh - 280px);
+    min-height: 200px;
+    max-height: none;
+  }
+}
+
+/* Asegurar que los elementos del menú tengan altura mínima */
+.menu-item-enhanced {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Contenedor flexible mejorado */
+.sidebar-flex-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  flex-shrink: 0;
+}
+
+.sidebar-nav {
+  flex-grow: 1;
+  flex-shrink: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-footer {
+  flex-shrink: 0;
+}
+
+/* Scrollbar más visible en móviles */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Para iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .custom-scrollbar {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ================================
+   CORRECCIÓN CRÍTICA DEL SCROLL MÓVIL
+   ================================ */
+
+/* Forzar altura específica para scroll en sidebar */
+.sidebar-nav {
+  flex: 1 1 0%; /* Tomar todo el espacio disponible */
+  min-height: 0; /* Permitir que se reduzca */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 8px;
+  margin-right: -8px;
+}
+
+/* En móvil, altura específica más agresiva */
+@media (max-width: 1024px) {
+  .sidebar-nav {
+    height: calc(100vh - 350px) !important;
+    height: calc(100dvh - 350px) !important;
+    max-height: 70vh !important;
+    min-height: 250px !important;
+    flex: 1 1 auto;
+    overflow-y: scroll !important; /* Forzar scroll visible */
+  }
+  
+  /* En pantallas muy pequeñas */
+  @media (max-height: 600px) {
+    .sidebar-nav {
+      height: calc(100vh - 250px) !important;
+      height: calc(100dvh - 250px) !important;
+      min-height: 200px !important;
+      max-height: 60vh !important;
+    }
+  }
+}
+
+/* Contenedor principal del sidebar más flexible */
+.sidebar-flex-container {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  position: relative;
+}
+
+/* Header y footer fijos */
+.sidebar-header-fixed {
+  flex: 0 0 auto; /* No crecer ni reducir */
+  padding-bottom: 1rem;
+}
+
+.sidebar-footer-fixed {
+  flex: 0 0 auto; /* No crecer ni reducir */
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: auto; /* Empujar hacia abajo */
+}
+
+/* Scrollbar más visible y funcional en móvil */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px !important;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.6) !important;
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.8) !important;
+  }
+  
+  /* Para Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thick !important;
+    scrollbar-color: rgba(255, 255, 255, 0.6) rgba(255, 255, 255, 0.1) !important;
+  }
+}
+
+/* Elementos del menú con altura fija para cálculos */
+.menu-item-mobile {
+  min-height: 52px !important;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Debug: bordes para visualizar áreas */
+.debug-scroll .sidebar-nav {
+  border: 2px solid red !important;
+}
+
+.debug-scroll .sidebar-header-fixed {
+  border: 2px solid green !important;
+}
+
+.debug-scroll .sidebar-footer-fixed {
+  border: 2px solid blue !important;
+}
+
+/* ================================
+   CORRECCIÓN URGENTE SCROLL MÓVIL
+   ================================ */
+
+/* Forzar scroll visible en móvil */
+@media (max-width: 768px) {
+  .sidebar-nav {
+    /* Altura específica muy agresiva */
+    height: 50vh !important;
+    min-height: 250px !important;
+    max-height: calc(100vh - 200px) !important;
+    
+    /* Forzar scroll */
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    
+    /* Padding para scroll */
+    padding-right: 12px !important;
+    margin-right: -12px !important;
+  }
+}
+
+/* Para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  .sidebar-nav {
+    height: 45vh !important;
+    min-height: 200px !important;
+    max-height: calc(100vh - 150px) !important;
+  }
+}
+
+/* Pantallas muy bajas (landscape) */
+@media (max-height: 500px) {
+  .sidebar-nav {
+    height: 40vh !important;
+    min-height: 150px !important;
+    max-height: calc(100vh - 100px) !important;
+  }
+  
+  .sidebar-header-fixed {
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .sidebar-footer-fixed {
+    padding-top: 0.5rem !important;
+    margin-top: 0.5rem !important;
+  }
+}
+
+/* Scrollbar súper visible para debug */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 14px !important;
+    background: rgba(255, 0, 0, 0.2) !important; /* Rojo para debug */
+    border-radius: 7px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 7px;
+    border: 2px solid rgba(255, 0, 0, 0.5) !important; /* Borde rojo para debug */
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 255, 0, 0.1) !important; /* Verde para debug */
+    border-radius: 7px;
+  }
+}
+
+/* Para elementos muy largos */
+.menu-item-mobile {
+  min-height: 48px !important;
+  max-height: 60px !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 2px !important;
+}
+
+/* Contenedor principal más estricto */
+.mobile-sidebar {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+}

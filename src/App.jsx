@@ -17,6 +17,8 @@ import ReportManager from '@/components/ReportManager';
 import FinanceManager from '@/components/FinanceManager';
 import ProfessionalPortal from '@/components/ProfessionalPortal';
 import ApiLogsViewer from '@/components/ApiLogsViewer';
+import UserManager from '@/components/UserManager';
+import RoleManager from '@/components/RoleManager';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import PWAUpdateNotification from '@/components/PWAUpdateNotification';
 import OfflineIndicator from '@/components/OfflineIndicator';
@@ -25,10 +27,14 @@ import apiService from '@/services/ApiService';
 import CacheManager from '@/services/CacheManager';
 
 const ROLES = {
+  SUPER_ADMIN: 'Super Administrador',
+  SUPERVISOR: 'Supervisor',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
+  MEDICOS_EXTERNOS: 'Médicos Externos',
   PROFESSIONAL: 'Profesional',
   RECEPTIONIST: 'Recepcionista',
+  ASISTENTE_MEDICO: 'Asistente Médico',
 };
 
 const CLINIC_NAME = "Clínica Delux";
@@ -160,7 +166,8 @@ function App() {
   // Función para limpiar cache al iniciar sesión
   const clearApplicationCache = async () => {
     try {
-      await CacheManager.clearAllCache();
+      // Usar la nueva función de limpieza suave
+      await CacheManager.clearCacheForLogin(); // Función optimizada
       console.log('✅ Cache de aplicación limpiado');
       
       toast({
@@ -278,8 +285,8 @@ function App() {
   };
 
   const handleLogout = async () => {
-    // Limpiar cache al cerrar sesión
-    await clearApplicationCache();
+    // En logout sí podemos hacer limpieza completa con recarga
+    await CacheManager.clearAllCache(true); // true = forzar recarga
     
     setIsAuthenticated(false);
     setCurrentUser(null);
@@ -294,18 +301,20 @@ function App() {
   };
 
   const allMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'professional-portal', label: 'Portal Profesional', icon: Stethoscope, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL] },
-    { id: 'appointments', label: 'Gestión de Citas', icon: Calendar, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'calendar', label: 'Calendario', icon: CalendarDays, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'professionals', label: 'Profesionales', icon: Users, roles: [ROLES.ADMIN, ROLES.MANAGER] },
-    { id: 'disciplines', label: 'Disciplinas', icon: Briefcase, roles: [ROLES.ADMIN, ROLES.MANAGER] },
-    { id: 'patients', label: 'Pacientes', icon: UserPlus, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'finances', label: 'Ingresos/Egresos', icon: BarChart3, roles: [ROLES.ADMIN, ROLES.MANAGER] },
-    { id: 'emails', label: 'Notificaciones', icon: Mail, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'reports', label: 'Reportes', icon: FileText, roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST] },
-    { id: 'api-logs', label: 'Logs de API', icon: Bug, roles: [ROLES.ADMIN, ROLES.MANAGER] },
-    { id: 'settings', label: 'Configuración', icon: Settings, roles: [ROLES.ADMIN, ROLES.MANAGER] },
+    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'professional-portal', label: 'Portal Profesional', icon: Stethoscope, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL] },
+    { id: 'appointments', label: 'Gestión de Citas', icon: Calendar, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'calendar', label: 'Calendario', icon: CalendarDays, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'professionals', label: 'Profesionales', icon: Users, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
+    { id: 'disciplines', label: 'Disciplinas', icon: Briefcase, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
+    { id: 'users', label: 'Usuarios', icon: Users, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN] },
+    { id: 'roles', label: 'Roles', icon: ShieldCheck, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN] },
+    { id: 'patients', label: 'Pacientes', icon: UserPlus, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'finances', label: 'Ingresos/Egresos', icon: BarChart3, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
+    { id: 'emails', label: 'Notificaciones', icon: Mail, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'reports', label: 'Reportes', icon: FileText, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'api-logs', label: 'Logs de API', icon: Bug, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
+    { id: 'settings', label: 'Configuración', icon: Settings, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
   ];
 
   const isViewAllowed = (viewId, userRole) => {
@@ -337,93 +346,109 @@ function App() {
     }
   }
 
-  const SidebarContent = () => {
+  const SidebarContent = ({ isMobile = false }) => {
     const visibleItems = getVisibleMenuItems(currentUser?.role);
     return (
-      <>
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold mb-2 flex items-center text-white">
-              <Activity className="w-8 h-8 mr-2 text-accent-foreground-alt"/> {CLINIC_NAME}
-            </h1>
-            <p className="text-primary-foreground/80 text-sm">Sistema de Gestión</p>
-            <div className="mt-2 flex items-center">
-              <div className={`w-2 h-2 rounded-full mr-2 ${dbConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-              <span className="text-xs text-primary-foreground/70">
-                {dbConnected ? 'BD Conectada' : 'Modo Híbrido'}
-              </span>
-              {(isSyncing || isRefreshing) && (
-                <div className="ml-2 flex items-center">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-primary-foreground/70 ml-1">
-                    {isRefreshing ? 'Actualizando...' : 'Sync...'}
-                  </span>
+      <div className="h-full sidebar-flex-container mobile-sidebar">
+        {/* Encabezado del Sidebar */}
+        <div className="sidebar-header-fixed">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center mb-3">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo Delux" 
+                  className="w-[220px] h-[180px] rounded-lg mr-3 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'inline';
+                  }}
+                />
+                <Activity className="w-8 h-8 mr-2 text-accent-foreground-alt" style={{display: 'none'}}/>
+              </div>
+              <p className="text-primary-foreground/80 text-sm">Sistema de Gestión</p>
+              <div className="mt-2 flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${dbConnected ? 'bg-green-400' : 'bg-yellow-400'}`}>
+                </div>
+                <span className="text-xs text-primary-foreground/70">
+                  {dbConnected ? 'BD Conectada' : 'Modo Híbrido'}
+                </span>
+                {(isSyncing || isRefreshing) && (
+                  <div className="ml-2 flex items-center">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-primary-foreground/70 ml-1">
+                      {isRefreshing ? 'Actualizando...' : 'Sync...'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {dbConnected && (
+                <div className="mt-2">
+                  <Button
+                    onClick={handleForceRefresh}
+                    disabled={isRefreshing}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-primary-foreground/80 hover:text-white hover:bg-white/10 p-1 h-auto"
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Actualizando...' : 'Actualizar datos'}
+                  </Button>
                 </div>
               )}
             </div>
-            
-            {/* NUEVO: Botón de actualización forzada */}
-            {dbConnected && (
-              <div className="mt-2">
-                <Button
-                  onClick={handleForceRefresh}
-                  disabled={isRefreshing}
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-primary-foreground/80 hover:text-white hover:bg-white/10 p-1 h-auto"
-                >
-                  <RefreshCw className={`w-3 h-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  {isRefreshing ? 'Actualizando...' : 'Actualizar datos'}
-                </Button>
+            <Button variant="ghost" size="icon" className="lg:hidden text-white" onClick={() => setIsSidebarOpen(false)}>
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
+
+          <div className="mb-8">
+            <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-lg">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
               </div>
-            )}
-          </div>
-          <Button variant="ghost" size="icon" className="lg:hidden text-white" onClick={() => setIsSidebarOpen(false)}>
-            <X className="w-6 h-6" />
-          </Button>
-        </div>
-
-        <div className="mb-8">
-          <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-lg">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="font-medium text-white">{currentUser?.name}</p>
-              <p className="text-xs text-primary-foreground/80">{currentUser?.role}</p>
+              <div>
+                <p className="font-medium text-white">{currentUser?.name}</p>
+                <p className="text-xs text-primary-foreground/80">{currentUser?.role}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <nav className="space-y-2">
-          {visibleItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <motion.button
-                key={item.id}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleSetView(item.id)}
-                className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all ${
-                  currentView === item.id 
-                    ? 'bg-white/20 text-white' 
-                    : 'text-primary-foreground/80 hover:bg-white/10 hover:text-white'
-                }`}
-                disabled={isSyncing || isRefreshing}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-                {(isSyncing || isRefreshing) && currentView === item.id && (
-                  <div className="ml-auto">
-                    <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin"></div>
-                  </div>
-                )}
-              </motion.button>
-            );
-          })}
-        </nav>
+        {/* Menú de Navegación con Scroll */}
+        <div className="sidebar-nav custom-scrollbar flex-1 min-h-0">
+          <nav className="space-y-1">
+            {visibleItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleSetView(item.id)}
+                  className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all menu-item-mobile ${
+                    currentView === item.id 
+                      ? 'bg-white/20 text-white' 
+                      : 'text-primary-foreground/80 hover:bg-white/10 hover:text-white'
+                  }`}
+                  disabled={isSyncing || isRefreshing}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                  {(isSyncing || isRefreshing) && currentView === item.id && (
+                    <div className="ml-auto">
+                      <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </motion.button>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="mt-auto pt-8">
+        {/* Footer del Sidebar */}
+        <div className="sidebar-footer-fixed">
           <Button
             onClick={handleLogout}
             variant="ghost"
@@ -433,9 +458,9 @@ function App() {
             Cerrar Sesión
           </Button>
         </div>
-      </>
+      </div>
     );
-  }
+  };
 
   const renderContent = () => {
     if (currentUser && !isViewAllowed(currentView, currentUser.role)) {
@@ -459,6 +484,10 @@ function App() {
         return <ProfessionalManager />;
       case 'disciplines':
         return <DisciplineManager />;
+      case 'users':
+        return <UserManager />;
+      case 'roles':
+        return <RoleManager />;
       case 'calendar':
         return <CalendarView />;
       case 'patients':
@@ -480,7 +509,7 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary to-accent-alt">
+      <div className="min-h-screen min-h-dvh flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-primary to-accent-alt">
         <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} isLoading={isLoading} />
         <Toaster />
         <PWAInstallPrompt />
@@ -490,7 +519,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen min-h-dvh flex bg-background main-container">
       <AnimatePresence>
         {isSidebarOpen && (
           <>
@@ -499,9 +528,9 @@ function App() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 left-0 w-64 sidebar-gradient text-primary-foreground p-6 shadow-2xl z-50 flex flex-col"
+              className="fixed inset-y-0 left-0 w-80 sm:w-64 sidebar-gradient text-primary-foreground p-4 sm:p-6 shadow-2xl z-50 flex flex-col mobile-sidebar"
             >
-              <SidebarContent />
+              <SidebarContent isMobile={true} />
             </motion.div>
             <motion.div
               initial={{ opacity: 0 }}
@@ -515,15 +544,15 @@ function App() {
       </AnimatePresence>
 
       <div className="hidden lg:flex lg:flex-col w-64 sidebar-gradient text-primary-foreground p-6 shadow-2xl">
-        <SidebarContent />
+        <SidebarContent isMobile={true} />
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <div className="p-4 lg:p-6">
+      <div className="flex-1 overflow-auto main-content">
+        <div className="p-3 sm:p-4 lg:p-6">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden mb-4 text-foreground"
+            className="lg:hidden mb-3 sm:mb-4 text-foreground menu-toggle-button"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="w-6 h-6" />

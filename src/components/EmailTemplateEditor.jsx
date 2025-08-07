@@ -696,7 +696,7 @@ Si tiene alguna pregunta, contáctenos.
                     placeholder="Asunto del email..."
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Usa variables como {'{'}{'{'}{'}clinic_name{'}'}{'}'}{'}'}, {'{'}{'{'}{'}patient_name{'}'}{'}'}{'}'}, etc.
+                    Usa variables como {'{{'}{'}clinic_name{'}}'}, {'{{'}{'}patient_name{'}}'}, etc.
                   </p>
                 </div>
               </TabsContent>

@@ -180,21 +180,57 @@ const ProfessionalPortal = ({ currentUser }) => {
     }
   };
 
-  const handleSelectPatient = (patient) => {
+  const handleSelectPatient = async (patient) => {
     setSelectedPatient(patient);
-    const patientIdentifier = patient?.id || patient?.name;
-    if (currentUser && currentUser.id && patientIdentifier) {
-      const notes = localStorage.getItem(`clinical_notes_${currentUser.id}_${patientIdentifier}`);
-      setClinicalNotes(notes || '');
+    setClinicalNotes(''); // Reset notes while loading
+    
+    if (currentUser && professionalDetails && patient?.id) {
+      try {
+        const notesData = await apiService.getClinicalNotes(patient.id, professionalDetails.id);
+        setClinicalNotes(notesData?.notes || '');
+      } catch (error) {
+        console.error('Error cargando notas clínicas:', error);
+        // Fallback to localStorage for backward compatibility
+        const patientIdentifier = patient?.id || patient?.name;
+        const localNotes = localStorage.getItem(`clinical_notes_${currentUser.id}_${patientIdentifier}`);
+        setClinicalNotes(localNotes || '');
+      }
     }
   };
 
-  const handleSaveNotes = () => {
-    if (!selectedPatient || !currentUser || !currentUser.id) return;
-    const patientIdentifier = selectedPatient.id || selectedPatient.name;
-    if (patientIdentifier) {
+  const handleSaveNotes = async () => {
+    if (!selectedPatient || !professionalDetails || !selectedPatient.id) {
+      toast({ 
+        title: 'Error', 
+        description: 'No se puede guardar. Asegúrate de que el paciente y profesional estén correctamente cargados.',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    try {
+      await apiService.saveClinicalNotes(selectedPatient.id, professionalDetails.id, clinicalNotes);
+      toast({ 
+        title: 'Notas Guardadas', 
+        description: 'Las notas clínicas se han guardado exitosamente en la base de datos.' 
+      });
+      
+      // También guardar en localStorage como respaldo
+      const patientIdentifier = selectedPatient.id || selectedPatient.name;
       localStorage.setItem(`clinical_notes_${currentUser.id}_${patientIdentifier}`, clinicalNotes);
-      toast({ title: 'Notas Guardadas', description: 'Las notas clínicas se han guardado correctamente.' });
+      
+    } catch (error) {
+      console.error('Error guardando notas clínicas:', error);
+      
+      // Fallback to localStorage if database fails
+      const patientIdentifier = selectedPatient.id || selectedPatient.name;
+      localStorage.setItem(`clinical_notes_${currentUser.id}_${patientIdentifier}`, clinicalNotes);
+      
+      toast({ 
+        title: 'Notas Guardadas Localmente', 
+        description: 'Las notas se guardaron solo en el navegador. Error de conexión con la base de datos.',
+        variant: 'default'
+      });
     }
   };
 
@@ -205,107 +241,115 @@ const ProfessionalPortal = ({ currentUser }) => {
     const margin = 15;
     let yPos = margin;
 
-    if (clinicLogo) {
-      try {
-        doc.addImage(clinicLogo, 'PNG', margin, yPos, 30, 30); 
-      } catch (e) {
-        console.error("Error adding logo to PDF:", e);
-        doc.setFontSize(10);
-        doc.text("LOGO", margin + 15, yPos + 15, {align: 'center'});
-      }
-    } else {
+    // Agregar el logo Delux
+    const logoImg = new Image();
+    logoImg.onload = function() {
+      doc.addImage(logoImg, 'JPEG', margin, yPos, 42, 24);
+      
+      // Continuar con el resto del PDF después de cargar el logo
+      generatePrescriptionPDFContent();
+    };
+    
+    logoImg.onerror = function() {
+      // Si no se puede cargar el logo, continuar sin él
       doc.setFontSize(10);
       doc.text("LOGO AQUÍ", margin + 15, yPos + 15, {align: 'center'});
-    }
+      
+      generatePrescriptionPDFContent();
+    };
     
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.text(clinicName, pageWidth / 2, yPos + 10, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    const clinicAddress = localStorage.getItem('clinic_address') || "Dirección de la clínica no configurada";
-    const clinicPhone = localStorage.getItem('clinic_phone') || "Teléfono no configurado";
-    doc.text(clinicAddress, pageWidth / 2, yPos + 18, { align: 'center' });
-    doc.text(clinicPhone, pageWidth / 2, yPos + 24, { align: 'center' });
-    yPos += 35;
-
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('RECETA MÉDICA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text('Paciente:', margin, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(patient.name || 'N/A', margin + 25, yPos);
+    logoImg.src = '/logo.png';
     
-    doc.setFont(undefined, 'bold');
-    doc.text('Fecha:', pageWidth - margin - 40, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(new Date().toLocaleDateString('es-ES'), pageWidth - margin - 20, yPos);
-    yPos += 7;
-
-    doc.setFont(undefined, 'bold');
-    doc.text('Edad:', margin, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(patient.age ? `${patient.age} años` : 'N/A', margin + 25, yPos);
-    yPos += 10;
-
-    doc.setLineWidth(0.2);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text('Rp/', margin, yPos);
-    yPos += 8;
-
-    doc.setFontSize(10);
-    presData.medications.forEach((med, index) => {
-      if (yPos > pageHeight - 40) { doc.addPage(); yPos = margin; }
+    function generatePrescriptionPDFContent() {
+      doc.setFontSize(18);
       doc.setFont(undefined, 'bold');
-      doc.text(`${index + 1}. ${med.name || 'Medicamento no especificado'}`, margin + 5, yPos);
-      yPos += 5;
+      doc.text(clinicName, pageWidth / 2, yPos + 10, { align: 'center' });
+      doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
-      doc.text(`Dosis: ${med.dosage || 'No especificada'}`, margin + 10, yPos);
-      yPos += 5;
-      doc.text(`Indicaciones: ${med.instructions || 'No especificadas'}`, margin + 10, yPos);
+      const clinicAddress = localStorage.getItem('clinic_address') || "Dirección de la clínica no configurada";
+      const clinicPhone = localStorage.getItem('clinic_phone') || "Teléfono no configurado";
+      doc.text(clinicAddress, pageWidth / 2, yPos + 18, { align: 'center' });
+      doc.text(clinicPhone, pageWidth / 2, yPos + 24, { align: 'center' });
+      yPos += 35;
+
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 10;
+
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text('RECETA MÉDICA', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text('Paciente:', margin, yPos);
+      doc.setFont(undefined, 'normal');
+      doc.text(patient.name || 'N/A', margin + 25, yPos);
+      
+      doc.setFont(undefined, 'bold');
+      doc.text('Fecha:', pageWidth - margin - 40, yPos);
+      doc.setFont(undefined, 'normal');
+      doc.text(new Date().toLocaleDateString('es-ES'), pageWidth - margin - 20, yPos);
+      yPos += 7;
+
+      doc.setFont(undefined, 'bold');
+      doc.text('Edad:', margin, yPos);
+      doc.setFont(undefined, 'normal');
+      doc.text(patient.age ? `${patient.age} años` : 'N/A', margin + 25, yPos);
+      yPos += 10;
+
+      doc.setLineWidth(0.2);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 10;
+
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('Rp/', margin, yPos);
       yPos += 8;
-    });
-    
-    if (yPos > pageHeight - 60) { doc.addPage(); yPos = margin; }
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text('Observaciones Generales:', margin, yPos);
-    yPos += 8;
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    const observationsText = doc.splitTextToSize(presData.generalObservations || 'Ninguna.', pageWidth - margin * 2);
-    doc.text(observationsText, margin, yPos);
-    yPos += (observationsText.length * 5) + 10;
 
-    if (yPos > pageHeight - 50) { doc.addPage(); yPos = margin; }
-    doc.setLineWidth(0.5);
-    doc.line(margin, pageHeight - 35, pageWidth - margin, pageHeight - 35);
-    
-    doc.setFontSize(10);
-    doc.text(`Dr(a). ${profDetails?.name || 'Nombre del Profesional'}`, margin, pageHeight - 25);
-    const disciplineName = profDetails?.discipline_name || profDetails?.disciplineId || 'N/A';
-    doc.text(`Especialidad: ${disciplineName}`, margin, pageHeight - 20);
-    doc.text(`Licencia: ${profDetails?.license || 'N/A'}`, margin, pageHeight - 15);
-    doc.text('Firma:', pageWidth - margin - 50, pageHeight - 25);
-    doc.line(pageWidth - margin - 50, pageHeight - 28, pageWidth - margin - 15, pageHeight - 28);
+      doc.setFontSize(10);
+      presData.medications.forEach((med, index) => {
+        if (yPos > pageHeight - 40) { doc.addPage(); yPos = margin; }
+        doc.setFont(undefined, 'bold');
+        doc.text(`${index + 1}. ${med.name || 'Medicamento no especificado'}`, margin + 5, yPos);
+        yPos += 5;
+        doc.setFont(undefined, 'normal');
+        doc.text(`Dosis: ${med.dosage || 'No especificada'}`, margin + 10, yPos);
+        yPos += 5;
+        doc.text(`Indicaciones: ${med.instructions || 'No especificadas'}`, margin + 10, yPos);
+        yPos += 8;
+      });
+      
+      if (yPos > pageHeight - 60) { doc.addPage(); yPos = margin; }
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('Observaciones Generales:', margin, yPos);
+      yPos += 8;
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      const observationsText = doc.splitTextToSize(presData.generalObservations || 'Ninguna.', pageWidth - margin * 2);
+      doc.text(observationsText, margin, yPos);
+      yPos += (observationsText.length * 5) + 10;
 
-    doc.save(`receta_${patient.name.replace(/\s/g, '_')}${isExample ? '_ejemplo' : ''}.pdf`);
-    if (!isExample) {
-      toast({ title: 'Receta Generada', description: 'La receta médica se ha descargado.' });
-      setShowPrescriptionModal(false);
-      setPrescriptionData({ medications: [{ name: '', dosage: '', instructions: '' }], generalObservations: '' });
+      if (yPos > pageHeight - 50) { doc.addPage(); yPos = margin; }
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 35, pageWidth - margin, pageHeight - 35);
+      
+      doc.setFontSize(10);
+      doc.text(`Dr(a). ${profDetails?.name || 'Nombre del Profesional'}`, margin, pageHeight - 25);
+      const disciplineName = profDetails?.discipline_name || profDetails?.disciplineId || 'N/A';
+      doc.text(`Especialidad: ${disciplineName}`, margin, pageHeight - 20);
+      doc.text(`Licencia: ${profDetails?.license || 'N/A'}`, margin, pageHeight - 15);
+      doc.text('Firma:', pageWidth - margin - 50, pageHeight - 25);
+      doc.line(pageWidth - margin - 50, pageHeight - 28, pageWidth - margin - 15, pageHeight - 28);
+
+      doc.save(`receta_${patient.name.replace(/\s/g, '_')}${isExample ? '_ejemplo' : ''}.pdf`);
+      if (!isExample) {
+        toast({ title: 'Receta Generada', description: 'La receta médica se ha descargado.' });
+        setShowPrescriptionModal(false);
+        setPrescriptionData({ medications: [{ name: '', dosage: '', instructions: '' }], generalObservations: '' });
+      }
     }
   };
 

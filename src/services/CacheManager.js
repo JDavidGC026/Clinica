@@ -101,7 +101,7 @@ class CacheManager {
   }
 
   // Limpiar cache completo (para login/logout)
-  async clearAllCache() {
+  async clearAllCache(forceReload = false) {
     try {
       const results = await Promise.all([
         this.clearBrowserCache(),
@@ -116,7 +116,7 @@ class CacheManager {
         
         // Forzar recarga de la página para asegurar que no queden residuos
         setTimeout(() => {
-          window.location.reload(true);
+          // COMENTADO: window.location.reload(true); // Causa problemas en login
         }, 100);
       }
 
@@ -203,7 +203,7 @@ class CacheManager {
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         const obsoleteCaches = cacheNames.filter(name => 
-          name.includes('clinic') && !name.includes(this.cacheVersion)
+          name.startsWith('clinic-cache-') && !name.includes(this.cacheVersion)
         );
 
         if (obsoleteCaches.length > 0) {
@@ -295,6 +295,22 @@ class CacheManager {
   }
 
   // CORREGIDO: Configurar headers para evitar cache del navegador
+  // NUEVA FUNCIÓN: Limpieza suave para login (solo datos, no auth)
+  async clearCacheForLogin() {
+    try {
+      // Solo limpiar datos obsoletos, mantener configuración y auth
+      await this.clearDataCache();
+      await this.clearSessionStorage();
+      
+      console.log('✅ Cache preparado para login - sin recarga');
+      return true;
+    } catch (error) {
+      console.error('Error en limpieza suave de cache:', error);
+      return false;
+    }
+  }
+
+
   static getNoCacheHeaders() {
     return {
       'Cache-Control': 'no-cache, no-store, must-revalidate',

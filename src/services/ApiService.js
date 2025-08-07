@@ -11,6 +11,11 @@ class ApiService {
   }
 
   detectBaseURL() {
+    // En desarrollo, usar el proxy de Vite
+    if (window.location.hostname === 'localhost' && window.location.port === '3000') {
+      return '/';
+    }
+    // En producción, usar ruta relativa
     return './';
   }
 
@@ -426,6 +431,88 @@ class ApiService {
     }
   }
 
+  // Roles
+  async getRoles() {
+    try {
+      const serverData = await this.get('roles');
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Error cargando roles', { error: error.message });
+      throw error;
+    }
+  }
+
+  async createRole(roleData) {
+    try {
+      const serverResponse = await this.post('roles', roleData);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Error creando rol', { error: error.message });
+      throw error;
+    }
+  }
+
+  async updateRole(id, roleData) {
+    try {
+      const serverResponse = await this.put(`roles?id=${id}`, roleData);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Error actualizando rol', { error: error.message });
+      throw error;
+    }
+  }
+
+  async deleteRole(id) {
+    try {
+      await this.delete(`roles?id=${id}`);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Error eliminando rol', { error: error.message });
+      throw error;
+    }
+  }
+
+  // Role Categories
+  async getRoleCategories() {
+    try {
+      const serverData = await this.get('role-categories');
+      return serverData;
+    } catch (error) {
+      this.log('warn', 'Error cargando categorías de roles', { error: error.message });
+      throw error;
+    }
+  }
+
+  async createRoleCategory(categoryData) {
+    try {
+      const serverResponse = await this.post('role-categories', categoryData);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Error creando categoría de rol', { error: error.message });
+      throw error;
+    }
+  }
+
+  async updateRoleCategory(id, categoryData) {
+    try {
+      const serverResponse = await this.put(`role-categories?id=${id}`, categoryData);
+      return serverResponse;
+    } catch (error) {
+      this.log('warn', 'Error actualizando categoría de rol', { error: error.message });
+      throw error;
+    }
+  }
+
+  async deleteRoleCategory(id) {
+    try {
+      await this.delete(`role-categories?id=${id}`);
+      return { success: true };
+    } catch (error) {
+      this.log('warn', 'Error eliminando categoría de rol', { error: error.message });
+      throw error;
+    }
+  }
+
   // Emails
   async sendEmail(emailData) {
     return this.post('send-email', emailData);
@@ -479,6 +566,20 @@ class ApiService {
       console.error('Error cargando logs:', error);
       this.logs = [];
     }
+  }
+
+
+  // Notas Clínicas
+  async getClinicalNotes(patientId, professionalId) {
+    return this.get(`clinical-notes?patient_id=${patientId}&professional_id=${professionalId}`);
+  }
+
+  async saveClinicalNotes(patientId, professionalId, notes) {
+    return this.post('clinical-notes', {
+      patient_id: patientId,
+      professional_id: professionalId,
+      notes: notes
+    });
   }
 
   // Métodos de sincronización

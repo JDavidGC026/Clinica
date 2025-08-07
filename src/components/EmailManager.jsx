@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Mail, CheckCircle, Clock, AlertCircle, Eye, TestTube, Users, UserCheck, Calendar } from 'lucide-react';
+import { Send, Mail, CheckCircle, Clock, AlertCircle, Eye, TestTube, Users, UserCheck, Calendar, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import EmailService from '@/services/EmailService';
@@ -14,6 +14,7 @@ const EmailManager = () => {
   const [selectedAppointments, setSelectedAppointments] = useState([]);
   const [reminderType, setReminderType] = useState('patient'); // 'patient' o 'professional'
   const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
 
   useEffect(() => {
     loadEmailHistory();
@@ -35,23 +36,50 @@ const EmailManager = () => {
   };
 
   const loadAppointments = async () => {
+    setIsLoadingAppointments(true);
     try {
       const appointmentsData = await apiService.getAppointments();
+      console.log('📅 Total de citas obtenidas:', appointmentsData.length);
+      console.log('📅 Citas completas:', appointmentsData);
+      
       // Filtrar solo citas programadas y futuras
       const today = new Date();
+      today.setHours(0, 0, 0, 0); // Resetear horas para comparación de fecha
+      
+      console.log('📅 Fecha de hoy:', today.toISOString());
+      
       const upcomingAppointments = appointmentsData.filter(apt => {
         const aptDate = new Date(apt.date);
-        return apt.status === 'programada' && aptDate >= today;
+        console.log(`📅 Evaluando cita: ${apt.patient_name}, fecha: ${apt.date}, estado: ${apt.status}, fecha parseada: ${aptDate.toISOString()}`);
+        
+        const isScheduled = apt.status === 'programada';
+        const isFuture = aptDate >= today;
+        
+        console.log(`📅 Es programada: ${isScheduled}, Es futura: ${isFuture}`);
+        
+        return isScheduled && isFuture;
       }).sort((a, b) => new Date(a.date) - new Date(b.date));
       
+      console.log('📅 Citas próximas filtradas:', upcomingAppointments.length);
+      console.log('📅 Citas próximas:', upcomingAppointments);
+      
       setAppointments(upcomingAppointments);
+      
+      toast({
+        title: "Citas actualizadas",
+        description: `Se encontraron ${upcomingAppointments.length} citas próximas.`,
+      });
+      
     } catch (error) {
-      console.error('Error cargando citas:', error);
+      console.error('❌ Error cargando citas:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar las citas.",
+        description: "No se pudieron cargar las citas: " + (error.message || 'Error desconocido'),
         variant: "destructive"
       });
+      setAppointments([]);
+    } finally {
+      setIsLoadingAppointments(false);
     }
   };
 
@@ -236,7 +264,7 @@ const EmailManager = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Notificaciones</h1>
@@ -309,20 +337,38 @@ const EmailManager = () => {
                 <label className="text-sm font-medium text-muted-foreground">
                   Citas Próximas ({appointments.length})
                 </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAll}
-                >
-                  {selectedAppointments.length === appointments.length ? 'Deseleccionar Todo' : 'Seleccionar Todo'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={loadAppointments}
+                    disabled={isLoadingAppointments}
+                    title="Refrescar citas"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isLoadingAppointments ? 'animate-spin' : ''}`} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                  >
+                    {selectedAppointments.length === appointments.length ? 'Deseleccionar Todo' : 'Seleccionar Todo'}
+                  </Button>
+                </div>
               </div>
               
               <div className="max-h-64 overflow-y-auto border border-border rounded-lg">
                 {appointments.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
-                    No hay citas próximas programadas
+                    <div className="mb-2">📅 No hay citas próximas programadas</div>
+                    <div className="text-xs">
+                      Para que aparezcan citas aquí deben:
+                      <br />• Tener estado "programada"
+                      <br />• Tener fecha de hoy o futura
+                      <br />• Presione el botón 🔄 para refrescar
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-1 p-2">
