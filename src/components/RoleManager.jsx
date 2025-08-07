@@ -607,7 +607,7 @@ const RoleManager = () => {
                     name="category_id"
                     value={roleFormData.category_id}
                     onChange={handleRoleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   >
                     <option value="">Seleccionar categoría...</option>
                     {categories.filter(c => c.active).map((category) => (

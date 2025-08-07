@@ -186,7 +186,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                   name="disciplineId"
                   value={formData.disciplineId}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   required
                 >
                   <option value="">Seleccionar disciplina</option>
@@ -206,7 +206,7 @@ const ProfessionalForm = ({ professional, disciplines, onSubmit, onCancel }) => 
                   name="role_id"
                   value={formData.role_id}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   required
                 >
                   <option value="">Seleccionar rol</option>

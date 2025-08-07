@@ -412,7 +412,7 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-64 overflow-hidden">
                     <Command>
                       <CommandInput placeholder="Buscar paciente..." />
                       <CommandList>
@@ -482,7 +482,7 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-64 overflow-hidden">
                     <Command>
                       <CommandInput placeholder="Buscar profesional..." />
                       <CommandList>
@@ -542,7 +542,13 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Hora *</label>
-                  <select name="time" value={formData.time} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required>
+                  <select 
+                    name="time" 
+                    value={formData.time} 
+                    onChange={handleChange} 
+                    className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    required
+                  >
                     <option value="">Seleccionar hora</option>
                     {timeSlots.map(time => (<option key={time} value={time}>{time}</option>))}
                   </select>
@@ -575,7 +581,13 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Estado del Pago *</label>
-                <select name="paymentStatus" value={formData.paymentStatus} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" required>
+                <select 
+                  name="paymentStatus" 
+                  value={formData.paymentStatus} 
+                  onChange={handleChange} 
+                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  required
+                >
                   {paymentStatusOptions.map(status => (<option key={status.value} value={status.value}>{status.label}</option>))}
                 </select>
               </div>
@@ -590,7 +602,12 @@ const AppointmentForm = ({ appointment, onSubmit, onCancel }) => {
               </h3>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Estado General</label>
-                <select name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground">
+                <select 
+                  name="status" 
+                  value={formData.status} 
+                  onChange={handleChange} 
+                  className="scrollable-select w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                >
                   <option value="programada">Programada</option>
                   <option value="en-progreso">En Progreso</option>
                   <option value="completada">Completada</option>
