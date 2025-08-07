@@ -27,9 +27,9 @@ if (file_exists($envFile)) {
 
 // Configuración de base de datos
 $host = $_ENV['DB_HOST'] ?? 'localhost';
-$username = $_ENV['DB_USER'] ?? 'root';
-$password = $_ENV['DB_PASSWORD'] ?? '';
-$database = $_ENV['DB_NAME'] ?? 'clinica_delux';
+$username = $_ENV['DB_USER'] ?? 'u437141408_clinica';
+$password = $_ENV['DB_PASSWORD'] ?? '@Aguila01126';
+$database = $_ENV['DB_NAME'] ?? 'u437141408_clinica';
 
 function getDatabase() {
     global $host, $username, $password, $database;

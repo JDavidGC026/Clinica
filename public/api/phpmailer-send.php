@@ -34,15 +34,32 @@ use PHPMailer\PHPMailer\Exception;
 try {
     $mail = new PHPMailer(true);
 
-    // Configuración del servidor SMTP
+    // Configuración del servidor SMTP (dinámica)
     $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
+    $mail->Host       = $data['smtp_host'] ?? 'smtp.gmail.com';
     $mail->SMTPAuth   = true;
     $mail->Username   = $data['smtp_user'];
     $mail->Password   = $data['smtp_password'];
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
-    $mail->CharSet    = 'UTF-8';
+    
+    // Configurar encriptación y puerto según el proveedor
+    $smtpSecure = $data['smtp_secure'] ?? 'tls';
+    $smtpPort = $data['smtp_port'] ?? 587;
+    
+    if ($smtpSecure === 'ssl') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port = $smtpPort;
+    } else {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = $smtpPort;
+    }
+    
+    $mail->CharSet = 'UTF-8';
+    
+    // Configuración adicional para debugging
+    if (isset($data['debug']) && $data['debug']) {
+        $mail->SMTPDebug = SMTP::DEBUG_SERVER;
+        $mail->Debugoutput = 'html';
+    }
 
     // Configuración del remitente
     $fromEmail = $data['from_email'] ?? $data['smtp_user'];

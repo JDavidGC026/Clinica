@@ -1,5 +1,5 @@
 // Service Worker para Clínica Delux
-const CACHE_NAME = 'clinica-delux-v1';
+const CACHE_NAME = 'clinica-delux-v2';
 const urlsToCache = [
   './',
   './index.html',
