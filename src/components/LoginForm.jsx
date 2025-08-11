@@ -37,7 +37,7 @@ const LoginForm = ({ onLogin, isLoading }) => {
             className="w-[250px] h-[200px] mx-auto mb-4 flex items-center justify-center"
           >
             <img 
-              src="/logo.png" 
+              src="./logo.png" 
               alt="Logo Delux" 
             className="w-full h-full rounded-xl object-contain"
               onError={(e) => {

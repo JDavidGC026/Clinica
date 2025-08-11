@@ -35,6 +35,7 @@ const ROLES = {
   PROFESSIONAL: 'Profesional',
   RECEPTIONIST: 'Recepcionista',
   ASISTENTE_MEDICO: 'Asistente Médico',
+  GESTION_PACIENTES: 'Gestion de Pacientes',
 };
 
 const CLINIC_NAME = "Clínica Delux";
@@ -301,7 +302,7 @@ function App() {
   };
 
   const allMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO, ROLES.GESTION_PACIENTES] },
     { id: 'professional-portal', label: 'Portal Profesional', icon: Stethoscope, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL] },
     { id: 'appointments', label: 'Gestión de Citas', icon: Calendar, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
     { id: 'calendar', label: 'Calendario', icon: CalendarDays, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
@@ -309,7 +310,7 @@ function App() {
     { id: 'disciplines', label: 'Disciplinas', icon: Briefcase, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
     { id: 'users', label: 'Usuarios', icon: Users, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN] },
     { id: 'roles', label: 'Roles', icon: ShieldCheck, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN] },
-    { id: 'patients', label: 'Pacientes', icon: UserPlus, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
+    { id: 'patients', label: 'Pacientes', icon: UserPlus, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO, ROLES.GESTION_PACIENTES] },
     { id: 'finances', label: 'Ingresos/Egresos', icon: BarChart3, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
     { id: 'emails', label: 'Notificaciones', icon: Mail, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
     { id: 'reports', label: 'Reportes', icon: FileText, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER, ROLES.MEDICOS_EXTERNOS, ROLES.PROFESSIONAL, ROLES.RECEPTIONIST, ROLES.ASISTENTE_MEDICO] },
@@ -356,7 +357,7 @@ function App() {
             <div>
               <div className="flex items-center mb-3">
                 <img 
-                  src="/logo.png" 
+                  src="./logo.png" 
                   alt="Logo Delux" 
                   className="w-[220px] h-[180px] rounded-lg mr-3 object-contain"
                   onError={(e) => {
@@ -509,7 +510,7 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen min-h-dvh flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-primary to-accent-alt">
+      <div className="min-h-screen min-h-dvh flex items-center justify-center p-3 sm:p-4 bg-background">
         <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} isLoading={isLoading} />
         <Toaster />
         <PWAInstallPrompt />

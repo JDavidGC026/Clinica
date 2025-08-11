@@ -260,10 +260,10 @@ class HybridStorageService {
         response = await this.apiRequest('POST', entity, cleanData);
         break;
       case 'update':
-        response = await this.apiRequest('PUT', `${entity}?id=${cleanData.id}`, cleanData);
+        response = await this.apiRequest('PUT', `${entity}.php?id=${cleanData.id}`, cleanData);
         break;
       case 'delete':
-        response = await this.apiRequest('DELETE', `${entity}?id=${cleanData.id}`);
+        response = await this.apiRequest('DELETE', `${entity}.php?id=${cleanData.id}`);
         break;
       default:
         throw new Error(`Operación no soportada: ${operation}`);

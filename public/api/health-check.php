@@ -14,9 +14,9 @@ date_default_timezone_set('America/Mexico_City');
 
 // Configuración de base de datos
 $host = $_ENV['DB_HOST'] ?? 'localhost';
-$username = $_ENV['DB_USER'] ?? 'admin';
-$password = $_ENV['DB_PASSWORD'] ?? 'Imc590923cz4#';
-$database = $_ENV['DB_NAME'] ?? 'clinica_delux';
+$username = $_ENV['DB_USER'] ?? 'u437141408_clinica';
+$password = $_ENV['DB_PASSWORD'] ?? '@Aguila01126';
+$database = $_ENV['DB_NAME'] ?? 'u437141408_clinica';
 
 // Función para registrar actividad
 function logActivity($message, $status = 'info') {

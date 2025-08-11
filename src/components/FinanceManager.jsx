@@ -80,8 +80,8 @@ const FinanceManager = () => {
     try {
       setLoading(true);
       const [summaryData, expensesData] = await Promise.all([
-        apiService.get(`finances?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
-        apiService.get('expenses'),
+        apiService.get(`finances.php?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
+        apiService.get('expenses.php'),
       ]);
 
       setFinanceSummary(summaryData);
@@ -111,10 +111,10 @@ const FinanceManager = () => {
 
     try {
         if (editingExpenseId) {
-            await apiService.put(`expenses?id=${editingExpenseId}`, expenseData);
+            await apiService.put(`expenses.php?id=${editingExpenseId}`, expenseData);
             toast({ title: "Gasto actualizado", description: "El gasto ha sido modificado con éxito." });
         } else {
-            await apiService.post('expenses', expenseData);
+            await apiService.post('expenses.php', expenseData);
             toast({ title: "Gasto agregado", description: "El nuevo gasto ha sido registrado." });
         }
         resetExpenseForm();
@@ -126,7 +126,7 @@ const FinanceManager = () => {
 
   const handleDeleteExpense = async (id) => {
     try {
-        await apiService.delete(`expenses?id=${id}`);
+        await apiService.delete(`expenses.php?id=${id}`);
         toast({ title: "Gasto eliminado", description: "El gasto ha sido eliminado con éxito." });
         loadFinanceData();
     } catch (error) {

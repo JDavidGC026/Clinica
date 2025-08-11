@@ -108,12 +108,27 @@ try {
             $stmt->execute([$data['name'], $description, $categoryId, $active]);
             $newRoleId = $pdo->lastInsertId();
             
-            // Agregar permisos si se especificaron
-            if (isset($data['permissions']) && is_array($data['permissions'])) {
-                foreach ($data['permissions'] as $module => $permission) {
-                    if (in_array($permission, ['read', 'write', 'admin'])) {
-                        $stmt = $pdo->prepare("INSERT INTO role_permissions (role_id, module, permission) VALUES (?, ?, ?)");
-                        $stmt->execute([$newRoleId, $module, $permission]);
+            // Agregar permisos si se especificaron - VERSIÓN CORREGIDA
+            if (isset($data['permissions'])) {
+                $permissions = $data['permissions'];
+                
+                // Si es un string JSON, decodificarlo
+                if (is_string($permissions)) {
+                    $permissions = json_decode($permissions, true);
+                }
+                
+                if (is_array($permissions)) {
+                    foreach ($permissions as $module => $permission) {
+                        // Si es un array simple con nombres de permisos (índices numéricos)
+                        if (is_numeric($module)) {
+                            $module = $permission;
+                            $permission = 'write'; // permiso por defecto
+                        }
+                        
+                        if (in_array($permission, ['read', 'write', 'admin'])) {
+                            $stmt = $pdo->prepare("INSERT INTO role_permissions (role_id, module, permission) VALUES (?, ?, ?)");
+                            $stmt->execute([$newRoleId, $module, $permission]);
+                        }
                     }
                 }
             }
@@ -186,17 +201,32 @@ try {
                 $stmt->execute($updateValues);
             }
             
-            // Actualizar permisos si se especificaron
-            if (isset($data['permissions']) && is_array($data['permissions'])) {
-                // Eliminar permisos existentes
-                $stmt = $pdo->prepare("DELETE FROM role_permissions WHERE role_id = ?");
-                $stmt->execute([$roleId]);
+            // Actualizar permisos si se especificaron - VERSIÓN CORREGIDA
+            if (isset($data['permissions'])) {
+                $permissions = $data['permissions'];
                 
-                // Agregar nuevos permisos
-                foreach ($data['permissions'] as $module => $permission) {
-                    if (in_array($permission, ['read', 'write', 'admin'])) {
-                        $stmt = $pdo->prepare("INSERT INTO role_permissions (role_id, module, permission) VALUES (?, ?, ?)");
-                        $stmt->execute([$roleId, $module, $permission]);
+                // Si es un string JSON, decodificarlo
+                if (is_string($permissions)) {
+                    $permissions = json_decode($permissions, true);
+                }
+                
+                if (is_array($permissions)) {
+                    // Eliminar permisos existentes
+                    $stmt = $pdo->prepare("DELETE FROM role_permissions WHERE role_id = ?");
+                    $stmt->execute([$roleId]);
+                    
+                    // Agregar nuevos permisos
+                    foreach ($permissions as $module => $permission) {
+                        // Si es un array simple con nombres de permisos (índices numéricos)
+                        if (is_numeric($module)) {
+                            $module = $permission;
+                            $permission = 'write'; // permiso por defecto
+                        }
+                        
+                        if (in_array($permission, ['read', 'write', 'admin'])) {
+                            $stmt = $pdo->prepare("INSERT INTO role_permissions (role_id, module, permission) VALUES (?, ?, ?)");
+                            $stmt->execute([$roleId, $module, $permission]);
+                        }
                     }
                 }
             }

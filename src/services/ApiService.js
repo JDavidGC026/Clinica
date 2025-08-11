@@ -39,15 +39,12 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    let cleanEndpoint = endpoint.replace(/\.php$/, '');
-    const [baseEndpoint, queryParams] = cleanEndpoint.split('?');
-    const finalEndpoint = queryParams ? `${baseEndpoint}.php?${queryParams}` : `${baseEndpoint}.php`;
-    const url = `${this.baseURL}api/${finalEndpoint}`;
+    const url = `${this.baseURL}api/${endpoint}`;
     
     const startTime = Date.now();
 
     this.log('info', `Iniciando petición: ${options.method || 'GET'} ${url}`, {
-      endpoint: finalEndpoint,
+      endpoint: endpoint,
       options: { ...options, body: options.body ? JSON.parse(options.body) : undefined }
     });
 
@@ -136,12 +133,12 @@ class ApiService {
 
   // Métodos híbridos para cada entidad con invalidación automática de cache
   async getHealthCheck() {
-    return this.get('health-check');
+    return this.get('health-check.php');
   }
 
   // Usuarios con invalidación de cache
   async login(credentials) {
-    return this.post('login', credentials);
+    return this.post('login.php', credentials);
   }
 
   async getUsers() {
@@ -149,7 +146,7 @@ class ApiService {
       // SIEMPRE invalidar cache antes de cargar usuarios
       await CacheManager.invalidateEntityCache('users');
       
-      const serverData = await this.get('users');
+      const serverData = await this.get('users.php');
       localStorage.setItem('clinic_users', JSON.stringify(serverData));
       
       // Disparar evento de actualización
@@ -168,7 +165,7 @@ class ApiService {
   async getDisciplines() {
     try {
       await CacheManager.invalidateEntityCache('disciplines');
-      const serverData = await this.get('disciplines');
+      const serverData = await this.get('disciplines.php');
       localStorage.setItem('clinic_disciplines', JSON.stringify(serverData));
       
       window.dispatchEvent(new CustomEvent('dataUpdated', {
@@ -184,7 +181,7 @@ class ApiService {
 
   async createDiscipline(disciplineData) {
     try {
-      const serverResponse = await this.post('disciplines', disciplineData);
+      const serverResponse = await this.post('disciplines.php', disciplineData);
       
       // Invalidar cache inmediatamente después de crear
       await CacheManager.invalidateEntityCache('disciplines');
@@ -203,7 +200,7 @@ class ApiService {
 
   async updateDiscipline(id, disciplineData) {
     try {
-      const serverResponse = await this.put(`disciplines?id=${id}`, disciplineData);
+      const serverResponse = await this.put(`disciplines.php?id=${id}`, disciplineData);
       
       await CacheManager.invalidateEntityCache('disciplines');
       await this.hybridStorage.saveData('disciplines', serverResponse, 'update', id);
@@ -219,17 +216,47 @@ class ApiService {
 
   async deleteDiscipline(id) {
     try {
-      await this.delete(`disciplines?id=${id}`);
+      // 1. Eliminar del servidor primero
+      const result = await this.delete(`disciplines.php?id=${id}`);
       
+      // 2. Limpiar TODOS los caches relacionados
       await CacheManager.invalidateEntityCache('disciplines');
+      localStorage.removeItem('clinic_disciplines');
+      sessionStorage.removeItem('clinic_disciplines');
+      
+      // 3. Actualizar storage local
       await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
       
-      setTimeout(() => this.getDisciplines(), 100);
+      // 4. Forzar actualización inmediata del estado
+      const freshData = await this.get('disciplines.php');
+      localStorage.setItem('clinic_disciplines', JSON.stringify(freshData));
       
-      return { success: true };
+      // 5. Notificar a los componentes sobre el cambio
+      window.dispatchEvent(new CustomEvent('disciplineDeleted', { 
+        detail: { id, freshData } 
+      }));
+      
+      this.log('success', `Disciplina ${id} eliminada correctamente`);
+      return { success: true, data: freshData };
+      
     } catch (error) {
-      this.log('warn', 'Eliminando disciplina solo localmente', { error: error.message });
-      return await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
+      this.log('error', 'Error eliminando disciplina', { id, error: error.message });
+      
+      // Si falla el servidor, intentar eliminar localmente
+      try {
+        const result = await this.hybridStorage.saveData('disciplines', { id }, 'delete', id);
+        
+        // Limpiar caches locales también
+        localStorage.removeItem('clinic_disciplines');
+        sessionStorage.removeItem('clinic_disciplines');
+        
+        this.log('warn', 'Disciplina eliminada solo localmente');
+        return { success: true, offline: true };
+        
+      } catch (localError) {
+        this.log('error', 'Error eliminando disciplina localmente', { id, error: localError.message });
+        throw new Error(`Error eliminando disciplina: ${error.message}`);
+      }
     }
   }
 
@@ -237,7 +264,7 @@ class ApiService {
   async getProfessionals() {
     try {
       await CacheManager.invalidateEntityCache('professionals');
-      const serverData = await this.get('professionals');
+      const serverData = await this.get('professionals.php');
       localStorage.setItem('clinic_professionals', JSON.stringify(serverData));
       
       window.dispatchEvent(new CustomEvent('dataUpdated', {
@@ -253,7 +280,7 @@ class ApiService {
 
   async createProfessional(professionalData) {
     try {
-      const serverResponse = await this.post('professionals', professionalData);
+      const serverResponse = await this.post('professionals.php', professionalData);
       
       await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', serverResponse, 'create', serverResponse.id);
@@ -303,7 +330,7 @@ class ApiService {
   async getPatients() {
     try {
       await CacheManager.invalidateEntityCache('patients');
-      const serverData = await this.get('patients');
+      const serverData = await this.get('patients.php');
       localStorage.setItem('clinic_patients', JSON.stringify(serverData));
       
       window.dispatchEvent(new CustomEvent('dataUpdated', {
@@ -319,7 +346,7 @@ class ApiService {
 
   async createPatient(patientData) {
     try {
-      const serverResponse = await this.post('patients', patientData);
+      const serverResponse = await this.post('patients.php', patientData);
       
       await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', serverResponse, 'create', serverResponse.id);
@@ -369,7 +396,7 @@ class ApiService {
   async getAppointments() {
     try {
       await CacheManager.invalidateEntityCache('appointments');
-      const serverData = await this.get('appointments');
+      const serverData = await this.get('appointments.php');
       localStorage.setItem('clinic_appointments', JSON.stringify(serverData));
       
       window.dispatchEvent(new CustomEvent('dataUpdated', {
@@ -385,7 +412,7 @@ class ApiService {
 
   async createAppointment(appointmentData) {
     try {
-      const serverResponse = await this.post('appointments', appointmentData);
+      const serverResponse = await this.post('appointments.php', appointmentData);
       
       await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', serverResponse, 'create', serverResponse.id);
@@ -434,7 +461,7 @@ class ApiService {
   // Roles
   async getRoles() {
     try {
-      const serverData = await this.get('roles');
+      const serverData = await this.get('roles.php');
       return serverData;
     } catch (error) {
       this.log('warn', 'Error cargando roles', { error: error.message });
@@ -444,7 +471,7 @@ class ApiService {
 
   async createRole(roleData) {
     try {
-      const serverResponse = await this.post('roles', roleData);
+      const serverResponse = await this.post('roles.php', roleData);
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Error creando rol', { error: error.message });
@@ -454,7 +481,7 @@ class ApiService {
 
   async updateRole(id, roleData) {
     try {
-      const serverResponse = await this.put(`roles?id=${id}`, roleData);
+      const serverResponse = await this.put(`roles.php?id=${id}`, roleData);
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Error actualizando rol', { error: error.message });
@@ -464,7 +491,7 @@ class ApiService {
 
   async deleteRole(id) {
     try {
-      await this.delete(`roles?id=${id}`);
+      await this.delete(`roles.php?id=${id}`);
       return { success: true };
     } catch (error) {
       this.log('warn', 'Error eliminando rol', { error: error.message });
@@ -475,7 +502,7 @@ class ApiService {
   // Role Categories
   async getRoleCategories() {
     try {
-      const serverData = await this.get('role-categories');
+      const serverData = await this.get('role-categories.php');
       return serverData;
     } catch (error) {
       this.log('warn', 'Error cargando categorías de roles', { error: error.message });
@@ -485,7 +512,7 @@ class ApiService {
 
   async createRoleCategory(categoryData) {
     try {
-      const serverResponse = await this.post('role-categories', categoryData);
+      const serverResponse = await this.post('role-categories.php', categoryData);
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Error creando categoría de rol', { error: error.message });
@@ -495,7 +522,7 @@ class ApiService {
 
   async updateRoleCategory(id, categoryData) {
     try {
-      const serverResponse = await this.put(`role-categories?id=${id}`, categoryData);
+      const serverResponse = await this.put(`role-categories.php?id=${id}`, categoryData);
       return serverResponse;
     } catch (error) {
       this.log('warn', 'Error actualizando categoría de rol', { error: error.message });
@@ -505,7 +532,7 @@ class ApiService {
 
   async deleteRoleCategory(id) {
     try {
-      await this.delete(`role-categories?id=${id}`);
+      await this.delete(`role-categories.php?id=${id}`);
       return { success: true };
     } catch (error) {
       this.log('warn', 'Error eliminando categoría de rol', { error: error.message });
@@ -515,11 +542,11 @@ class ApiService {
 
   // Emails
   async sendEmail(emailData) {
-    return this.post('send-email', emailData);
+    return this.post('send-email.php', emailData);
   }
 
   async sendEmailFallback(emailData) {
-    return this.post('send-email-fallback', emailData);
+    return this.post('send-email-fallback.php', emailData);
   }
 
   // Métodos de utilidad para logs
@@ -575,7 +602,7 @@ class ApiService {
   }
 
   async saveClinicalNotes(patientId, professionalId, notes) {
-    return this.post('clinical-notes', {
+    return this.post('clinical-notes.php', {
       patient_id: patientId,
       professional_id: professionalId,
       notes: notes

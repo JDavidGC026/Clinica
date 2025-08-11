@@ -67,11 +67,11 @@ const Dashboard = () => {
   };
 
   const statCards = [
-    { title: 'Citas de Hoy', value: stats.todayAppointments, icon: Calendar, color: 'bg-primary', bgColor: 'bg-primary/10' },
-    { title: 'Profesionales Activos', value: stats.totalProfessionals, icon: Users, color: 'bg-green-500', bgColor: 'bg-green-500/10' },
-    { title: 'Disciplinas', value: stats.totalDisciplines, icon: Briefcase, color: 'bg-secondary-alt', bgColor: 'bg-secondary-alt/10' },
-    { title: 'Pacientes Registrados', value: stats.totalPatients, icon: TrendingUp, color: 'bg-pink-500', bgColor: 'bg-pink-500/10' },
-    { title: 'Citas Pendientes', value: stats.pendingAppointments, icon: Clock, color: 'bg-amber-500', bgColor: 'bg-amber-500/10' }
+    { title: 'Citas de Hoy', value: stats.todayAppointments, icon: Calendar, color: 'from-primary to-accent-alt', bgColor: 'bg-primary/10' },
+    { title: 'Profesionales Activos', value: stats.totalProfessionals, icon: Users, color: 'from-green-500 to-green-600', bgColor: 'bg-green-500/10' },
+    { title: 'Disciplinas', value: stats.totalDisciplines, icon: Briefcase, color: 'from-secondary-alt to-accent-alt-dark', bgColor: 'bg-secondary-alt/10' },
+    { title: 'Pacientes Registrados', value: stats.totalPatients, icon: TrendingUp, color: 'from-pink-500 to-rose-500', bgColor: 'bg-pink-500/10' },
+    { title: 'Citas Pendientes', value: stats.pendingAppointments, icon: Clock, color: 'from-amber-500 to-orange-500', bgColor: 'bg-amber-500/10' }
   ];
 
   const recentActivities = [
@@ -130,7 +130,7 @@ const Dashboard = () => {
               className={`${card.bgColor} rounded-xl p-4 sm:p-6 card-hover border border-border/50`}
             >
               <div className="flex items-center justify-between">
-                <div className={`p-2 sm:p-3 rounded-lg ${card.color}`}>
+                <div className={`p-2 sm:p-3 rounded-lg bg-gradient-to-r ${card.color}`}>
                   <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>

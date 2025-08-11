@@ -153,23 +153,44 @@ const DisciplineManager = () => {
     }
   };
 
+
   const handleDeleteDiscipline = async (id) => {
     try {
       setLoading(true);
-      await apiService.deleteDiscipline(id);
+      
+      // Encontrar la disciplina que se va a eliminar
+      const disciplineToDelete = disciplines.find(d => d.id === id);
+      const disciplineName = disciplineToDelete ? disciplineToDelete.name : id;
+      
+      // Eliminar del servidor y actualizar cache
+      const result = await apiService.deleteDiscipline(id);
+      
+      // Si el resultado incluye datos frescos, actualizarlos inmediatamente
+      if (result.data) {
+        setDisciplines(result.data);
+      } else {
+        // Eliminar del estado local inmediatamente
+        setDisciplines(prev => prev.filter(d => d.id !== id));
+      }
+      
       toast({ 
-        title: "Disciplina eliminada", 
-        description: "La disciplina ha sido eliminada." 
+        title: "✅ Disciplina eliminada", 
+        description: `${disciplineName} ha sido eliminada correctamente.`
       });
-      await loadDisciplines();
+      
+      // Recargar datos para asegurar sincronización
+      setTimeout(() => {
+        loadDisciplines();
+      }, 500);
+      
     } catch (error) {
       console.error('Error eliminando disciplina:', error);
       toast({
-        title: "Error al eliminar",
+        title: "❌ Error al eliminar",
         description: error.message.includes('in use') 
           ? "No se puede eliminar la disciplina porque está asignada a uno o más profesionales."
           : "No se pudo eliminar la disciplina: " + error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -177,206 +198,179 @@ const DisciplineManager = () => {
   };
 
   return (
-    <div className="space-y-6 overflow-x-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Disciplinas</h1>
-          <p className="text-muted-foreground mt-1">Crea, edita y administra las disciplinas de la clínica</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <Briefcase className="h-8 w-8 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Gestión de Disciplinas</h1>
+            <p className="text-gray-500">Administra las disciplinas médicas de la clínica</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex space-x-2">
           <Button
             onClick={handleRefresh}
-            disabled={refreshing}
             variant="outline"
-            className="w-full sm:w-auto"
+            disabled={refreshing}
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Actualizando...' : 'Actualizar'}
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Actualizar
           </Button>
-          <Button
-            onClick={() => handleOpenForm()}
-            disabled={loading}
-            className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
-          >
-            <Plus className="w-4 h-4 mr-2" />
+          <Button onClick={() => handleOpenForm()}>
+            <Plus className="h-4 w-4 mr-2" />
             Nueva Disciplina
           </Button>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre de disciplina..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-          />
+      {/* Barra de búsqueda */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <input
+          type="text"
+          placeholder="Buscar disciplinas..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+
+      {/* Lista de disciplinas */}
+      {loading && !refreshing ? (
+        <div className="text-center py-8">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
+          <p className="text-gray-500 mt-2">Cargando disciplinas...</p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDisciplines.map((discipline) => (
-          <motion.div
-            key={discipline.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-xl shadow-lg p-6 card-hover border border-border/50"
-          >
-            <div className="flex items-start justify-between mb-4 gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center">
-                  <Briefcase className="w-6 h-6 mr-3 text-primary" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-card-foreground break-words">{discipline.name}</h3>
-                    {discipline.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{discipline.description}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="ml-9 flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground">ID: {discipline.id}</p>
-                  <span className={`px-2 py-1 text-xs rounded-full ${discipline.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {discipline.active ? 'Activa' : 'Inactiva'}
-                  </span>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredDisciplines.map((discipline) => (
+            <motion.div
+              key={discipline.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-gray-900">{discipline.name}</h3>
+                <div className={`px-2 py-1 text-xs rounded-full ${
+                  discipline.active === 1 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {discipline.active === 1 ? 'Activa' : 'Inactiva'}
                 </div>
               </div>
-              <div className="flex-shrink-0 flex space-x-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => handleOpenForm(discipline)}
-                disabled={loading}
-              >
-                <Edit className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Editar</span>
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="destructiveOutline" 
-                    className="text-destructive hover:text-destructive/90"
-                    disabled={loading}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Eliminar</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Se eliminará permanentemente la disciplina "{discipline.name}".
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={() => handleDeleteDiscipline(discipline.id)} 
-                      className="bg-destructive hover:bg-destructive/90"
-                      disabled={loading}
-                    >
+              
+              {discipline.description && (
+                <p className="text-gray-600 text-sm mb-3">{discipline.description}</p>
+              )}
+              
+              <div className="flex space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleOpenForm(discipline)}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Editar
+                </Button>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="destructive">
+                      <Trash2 className="h-3 w-3 mr-1" />
                       Eliminar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción eliminará permanentemente la disciplina "{discipline.name}".
+                        Los profesionales asignados a esta disciplina quedarán sin asignar.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDeleteDiscipline(discipline.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {filteredDisciplines.length === 0 && (
-        <div className="bg-card rounded-xl shadow-lg p-12 text-center border border-border/50">
-          <Briefcase className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-card-foreground mb-2">No hay disciplinas</h3>
-          <p className="text-muted-foreground text-sm">
-            {disciplines.length === 0 
-              ? 'Comienza registrando tu primera disciplina' 
-              : 'No se encontraron disciplinas con los filtros aplicados'
-            }
-          </p>
+            </motion.div>
+          ))}
         </div>
       )}
 
+      {/* Diálogo de formulario */}
       <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="sm:max-w-[425px] bg-card border-border">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">{editingDiscipline ? 'Editar Disciplina' : 'Nueva Disciplina'}</DialogTitle>
+            <DialogTitle>
+              {editingDiscipline ? 'Editar Disciplina' : 'Nueva Disciplina'}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="name" className="text-right col-span-1 text-muted-foreground">
-                  Nombre*
-                </label>
-                <input
-                  id="name"
-                  value={disciplineName}
-                  onChange={(e) => setDisciplineName(e.target.value)}
-                  className="col-span-3 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="Nombre de la disciplina"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="description" className="text-right col-span-1 text-muted-foreground">
-                  Descripción
-                </label>
-                <textarea
-                  id="description"
-                  value={disciplineDescription}
-                  onChange={(e) => setDisciplineDescription(e.target.value)}
-                  className="col-span-3 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  placeholder="Descripción opcional"
-                  rows="3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="active" className="text-right col-span-1 text-muted-foreground">
-                  Estado
-                </label>
-                <div className="col-span-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={disciplineActive}
-                      onChange={(e) => setDisciplineActive(e.target.checked)}
-                      className="w-4 h-4 text-primary bg-background border-input rounded focus:ring-ring focus:ring-2"
-                    />
-                    <span className="text-sm text-foreground">Disciplina activa</span>
-                  </label>
-                </div>
-              </div>
-              {editingDiscipline && (
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label htmlFor="id" className="text-right col-span-1 text-muted-foreground">
-                    ID
-                  </label>
-                  <input
-                    id="id"
-                    value={editingDiscipline.id}
-                    className="col-span-3 px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground"
-                    disabled
-                  />
-                </div>
-              )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre *
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={disciplineName}
+                onChange={(e) => setDisciplineName(e.target.value)}
+                placeholder="Ej: Cardiología, Neurología..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
             </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancelar</Button>
-              </DialogClose>
-              <Button 
-                type="submit" 
-                className="bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
-                disabled={loading}
-              >
-                {loading ? 'Guardando...' : (editingDiscipline ? 'Guardar Cambios' : 'Crear Disciplina')}
-              </Button>
-            </DialogFooter>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción
+              </label>
+              <textarea
+                id="description"
+                value={disciplineDescription}
+                onChange={(e) => setDisciplineDescription(e.target.value)}
+                placeholder="Descripción de la disciplina médica..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                id="active"
+                type="checkbox"
+                checked={disciplineActive}
+                onChange={(e) => setDisciplineActive(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="active" className="text-sm text-gray-700">
+                Disciplina activa
+              </label>
+            </div>
           </form>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={loading}
+            >
+              {loading ? 'Guardando...' : editingDiscipline ? 'Actualizar' : 'Crear'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

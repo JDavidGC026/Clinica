@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Shield, Search, RefreshCw, Tag, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, Search, RefreshCw, Tag, Users, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -34,6 +35,12 @@ const RoleManager = () => {
   const [editingRole, setEditingRole] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Estados para el modal de reasignación de usuarios
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
+  const [usersToReassign, setUsersToReassign] = useState([]);
+  const [userReassignments, setUserReassignments] = useState({});
+  const [reassignLoading, setReassignLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Form data for roles
@@ -80,7 +87,7 @@ const RoleManager = () => {
       setLoading(true);
       const [rolesData, categoriesData] = await Promise.all([
         apiService.getRoles(),
-        apiService.get('role-categories')
+        apiService.get('role-categories.php')
       ]);
       setRoles(rolesData || []);
       setCategories(categoriesData || []);
@@ -159,18 +166,18 @@ const RoleManager = () => {
       const submitData = {
         ...roleFormData,
         active: roleFormData.active ? 1 : 0,
-        permissions: JSON.stringify(roleFormData.permissions),
+        permissions: roleFormData.permissions, // Enviar como array directo
         category_id: roleFormData.category_id || null
       };
       
       if (editingRole) {
-        await apiService.put(`roles?id=${editingRole.id}`, submitData);
+        await apiService.put(`roles.php?id=${editingRole.id}`, submitData);
         toast({ 
           title: "Rol actualizado", 
           description: "Los cambios han sido guardados." 
         });
       } else {
-        await apiService.post('roles', submitData);
+        await apiService.post('roles.php', submitData);
         toast({ 
           title: "Rol creado", 
           description: "El nuevo rol ha sido registrado." 
@@ -195,23 +202,150 @@ const RoleManager = () => {
   const handleDeleteRole = async (id) => {
     try {
       setLoading(true);
-      await apiService.delete(`roles?id=${id}`);
-      toast({ 
-        title: "Rol eliminado", 
-        description: "El rol ha sido eliminado." 
-      });
-      await loadData();
+      
+      // Obtener información del rol
+      const role = roles.find(r => r.id === id);
+      if (!role) {
+        toast({
+          title: "Error",
+          description: "No se pudo encontrar el rol a eliminar.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // PASO 1: Verificar usuarios asignados a este rol
+      const allUsers = await apiService.get("users.php");
+      const usersWithThisRole = allUsers.filter(user => user.role === role.name);
+      
+      if (usersWithThisRole.length > 0) {
+        // CASO A: Hay usuarios asignados → Mostrar modal de reasignación
+        setRoleToDelete(role);
+        setUsersToReassign(usersWithThisRole);
+        // Inicializar asignaciones vacías
+        const initialAssignments = {};
+        usersWithThisRole.forEach(user => {
+          initialAssignments[user.id] = "";
+        });
+        setUserReassignments(initialAssignments);
+        setShowReassignModal(true);
+      } else {
+        // CASO B: No hay usuarios asignados → Confirmar eliminación simple
+        const confirmed = window.confirm(
+          `¿Estás seguro de que deseas eliminar el rol "${role.name}"?\n\n` +
+          `Esta acción no se puede deshacer.`
+        );
+        
+        if (confirmed) {
+          await performRoleDeletion(role, []);
+        }
+      }
     } catch (error) {
-      console.error('Error eliminando rol:', error);
+      console.error("Error preparando eliminación de rol:", error);
       toast({
-        title: "Error al eliminar",
-        description: "No se pudo eliminar el rol: " + error.message,
+        title: "Error",
+        description: "Error al preparar la eliminación: " + error.message,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
+  
+  // Función para realizar la eliminación del rol
+  const performRoleDeletion = async (role, usersToReassign) => {
+    try {
+      await apiService.delete(`roles.php?id=${role.id}`);
+      toast({ 
+        title: "✅ Rol eliminado", 
+        description: usersToReassign.length > 0 
+          ? `El rol "${role.name}" ha sido eliminado y ${usersToReassign.length} usuario(s) han sido reasignados.`
+          : `El rol "${role.name}" ha sido eliminado correctamente.`
+      });
+      await loadData();
+    } catch (error) {
+      console.error("Error eliminando rol:", error);
+      const errorMessage = error.message.toLowerCase();
+      if (errorMessage.includes("assigned") || errorMessage.includes("in use") || errorMessage.includes("user")) {
+        toast({
+          title: "⚠️ Rol en uso",
+          description: "No se puede eliminar este rol porque aún está asignado a usuarios.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error al eliminar",
+          description: "No se pudo eliminar el rol: " + error.message,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+  
+  // Función para manejar el cambio de asignación de rol para un usuario
+  const handleUserReassignment = (userId, newRoleId) => {
+    setUserReassignments(prev => ({
+      ...prev,
+      [userId]: newRoleId
+    }));
+  };
+  
+  // Función para proceder con la reasignación y eliminación
+  const handleProceedWithReassignment = async () => {
+    try {
+      setReassignLoading(true);
+      
+      // Verificar que todos los usuarios tengan un rol asignado
+        const unassignedUsers = usersToReassign.filter(user => !userReassignments[user.id]);
+        if (unassignedUsers.length > 0) {
+        toast({
+          title: "Selección incompleta",
+          description: `Debes seleccionar un nuevo rol para todos los usuarios. Faltan: ${unassignedUsers.length} usuario(s).`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Reasignar cada usuario
+      const reassignmentPromises = usersToReassign.map(user => {
+        const newRoleId = userReassignments[user.id];
+        return apiService.put(`users.php?id=${user.id}`, {
+          role_id: newRoleId
+        });
+      });
+      
+      await Promise.all(reassignmentPromises);
+      
+      // Ahora eliminar el rol
+      await performRoleDeletion(roleToDelete, usersToReassign);
+      
+      // Cerrar modal
+      handleCancelReassignment();
+      
+    } catch (error) {
+      console.error("Error en la reasignación:", error);
+      toast({
+        title: "Error en la reasignación",
+        description: "No se pudo completar la reasignación: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setReassignLoading(false);
+    }
+  };
+  
+  // Función para cancelar la reasignación
+  const handleCancelReassignment = () => {
+    setShowReassignModal(false);
+    setRoleToDelete(null);
+    setUsersToReassign([]);
+    setUserReassignments({});
+    toast({
+      title: "Eliminación cancelada",
+      description: "El rol no ha sido eliminado.",
+    });
+  };
+
 
   // Category management functions
   const handleOpenCategoryForm = (category = null) => {
@@ -255,13 +389,13 @@ const RoleManager = () => {
       };
       
       if (editingCategory) {
-        await apiService.put(`role-categories?id=${editingCategory.id}`, submitData);
+        await apiService.put(`role-categories.php?id=${editingCategory.id}`, submitData);
         toast({ 
           title: "Categoría actualizada", 
           description: "Los cambios han sido guardados." 
         });
       } else {
-        await apiService.post('role-categories', submitData);
+        await apiService.post('role-categories.php', submitData);
         toast({ 
           title: "Categoría creada", 
           description: "La nueva categoría ha sido registrada." 
@@ -286,7 +420,7 @@ const RoleManager = () => {
   const handleDeleteCategory = async (id) => {
     try {
       setLoading(true);
-      await apiService.delete(`role-categories?id=${id}`);
+      await apiService.delete(`role-categories.php?id=${id}`);
       toast({ 
         title: "Categoría eliminada", 
         description: "La categoría ha sido eliminada." 
@@ -425,30 +559,15 @@ const RoleManager = () => {
                   >
                     <Edit className="w-3 h-3" />
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive/90">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción eliminará la categoría "{category.name}". Los roles asignados perderán su categoría.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="bg-destructive hover:bg-destructive/90"
-                        >
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleDeleteRole(role.id)}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Eliminar
+                </Button>
                 </div>
               </div>
               {category.description && (
@@ -521,37 +640,15 @@ const RoleManager = () => {
                   Editar
                 </Button>
                 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="text-destructive hover:text-destructive/90"
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" /> 
-                      Eliminar
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente el rol "{role.name}".
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={() => handleDeleteRole(role.id)} 
-                        className="bg-destructive hover:bg-destructive/90"
-                        disabled={loading}
-                      >
-                        Eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleDeleteRole(role.id)}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Eliminar
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -686,6 +783,97 @@ const RoleManager = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Reasignación de Usuarios */}
+      <Dialog open={showReassignModal} onOpenChange={setShowReassignModal}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-orange-500" />
+              Reasignar usuarios antes de eliminar rol
+            </DialogTitle>
+            <DialogDescription>
+              El rol "{roleToDelete?.name}" está asignado a {usersToReassign.length} usuario(s). 
+              Debes reasignar cada usuario a un nuevo rol antes de poder eliminarlo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Lista de usuarios para reasignar */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground">Usuarios a reasignar:</h4>
+              {usersToReassign.map((user) => (
+                <div key={user.id} className="flex items-center gap-4 p-4 border rounded-lg bg-muted/20">
+                  <div className="flex-1">
+                    <div className="font-medium">{user.name || user.username}</div>
+                    <div className="text-sm text-muted-foreground">
+                      @{user.username} • {user.email}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <select
+                      value={userReassignments[user.id] || ""}
+                      onChange={(e) => handleUserReassignment(user.id, e.target.value)}
+                      className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+                    >
+                      <option value="">-- Seleccionar nuevo rol --</option>
+                      {roles
+                        .filter(role => role.id !== roleToDelete?.id && role.active === 1)
+                        .map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name} {role.category_name && `(${role.category_name})`}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Resumen de la acción */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-orange-800">¿Qué sucederá?</h4>
+                  <div className="text-sm text-orange-700 mt-2 space-y-1">
+                    <p>• Los {usersToReassign.length} usuario(s) serán reasignados a los roles seleccionados</p>
+                    <p>• El rol "{roleToDelete?.name}" será eliminado permanentemente</p>
+                    <p>• Los permisos de los usuarios cambiarán según su nuevo rol</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelReassignment}
+              disabled={reassignLoading}
+            >
+              Cancelar eliminación
+            </Button>
+            <Button
+              onClick={handleProceedWithReassignment}
+              disabled={reassignLoading || usersToReassign.some(user => !userReassignments[user.id])}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {reassignLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4 mr-2" />
+                  Reasignar y eliminar rol
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Category Dialog */}
       <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
         <DialogContent className="sm:max-w-[400px] bg-card border-border">
@@ -780,6 +968,7 @@ const RoleManager = () => {
           </form>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

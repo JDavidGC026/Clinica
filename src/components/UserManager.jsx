@@ -81,7 +81,7 @@ const UserManager = () => {
 
   const loadRoles = async () => {
     try {
-      const data = await apiService.get('roles');
+      const data = await apiService.get('roles.php');
       setRoles(data || []);
     } catch (error) {
       console.error('Error cargando roles:', error);
@@ -209,13 +209,13 @@ const UserManager = () => {
       }
       
       if (editingUser) {
-        await apiService.put(`users?id=${editingUser.id}`, submitData);
+        await apiService.put(`users.php?id=${editingUser.id}`, submitData);
         toast({ 
           title: "Usuario actualizado", 
           description: "Los cambios han sido guardados." 
         });
       } else {
-        await apiService.post('users', submitData);
+        await apiService.post('users.php', submitData);
         toast({ 
           title: "Usuario creado", 
           description: "El nuevo usuario ha sido registrado." 
@@ -242,7 +242,7 @@ const UserManager = () => {
   const handleDeleteUser = async (id) => {
     try {
       setLoading(true);
-      await apiService.delete(`users?id=${id}`);
+      await apiService.delete(`users.php?id=${id}`);
       toast({ 
         title: "Usuario eliminado", 
         description: "El usuario ha sido eliminado." 
