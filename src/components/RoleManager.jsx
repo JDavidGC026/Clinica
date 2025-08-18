@@ -183,8 +183,8 @@ const RoleManager = () => {
       const submitData = {
         ...roleFormData,
         active: roleFormData.active ? 1 : 0,
-        permissions: roleFormData.permissions, // Enviar como array directo
-        category_id: roleFormData.category_id || null
+        permissions: roleFormData.permissions // Enviar como array directo
+        // category_id eliminado: no se usa
       };
       
       if (editingRole) {
@@ -728,25 +728,7 @@ const RoleManager = () => {
                   />
                 </div>
                 
-                <div>
-                  <label htmlFor="role-category" className="block text-sm font-medium text-muted-foreground mb-1">
-                    Categoría
-                  </label>
-                  <select
-                    id="role-category"
-                    name="category_id"
-                    value={roleFormData.category_id}
-                    onChange={handleRoleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-                  >
-                    <option value="">Seleccionar categoría...</option>
-                    {categories.filter(c => c.active).map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Categoría eliminada: no se requiere para crear/editar roles */}
               </div>
               
               <div>
