@@ -23,6 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import apiService from '@/services/ApiService';
+import { hasPermission } from '@/utils/permissions';
 
 const UserManager = () => {
   const [users, setUsers] = useState([]);
@@ -280,6 +281,19 @@ const UserManager = () => {
       : <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Inactivo</span>;
   };
 
+  const canRead = hasPermission('users', 'read') || hasPermission('users_manage', 'read');
+  const canWrite = hasPermission('users_manage', 'write') || hasPermission('users', 'write');
+
+  if (!canRead) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <Users className="w-12 h-12 text-destructive mb-4" />
+        <h2 className="text-2xl font-semibold text-foreground mb-2">Acceso Denegado</h2>
+        <p className="text-muted-foreground">No tienes permiso para ver Usuarios.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 overflow-x-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -299,8 +313,8 @@ const UserManager = () => {
           </Button>
           <Button
             onClick={() => handleOpenForm()}
-            disabled={loading}
-            className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
+            disabled={loading || !canWrite}
+            className={`w-full sm:w-auto bg-gradient-to-r from-primary to-accent-alt hover:opacity-90 ${!canWrite ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Usuario
@@ -359,7 +373,8 @@ const UserManager = () => {
                   size="sm" 
                   variant="outline" 
                   onClick={() => handleOpenForm(user)}
-                  disabled={loading}
+                  disabled={loading || !canWrite}
+                  className={!canWrite ? 'opacity-60 cursor-not-allowed' : ''}
                 >
                   <Edit className="w-4 h-4 mr-1 sm:mr-2" /> 
                   <span className="hidden sm:inline">Editar</span>
@@ -370,8 +385,8 @@ const UserManager = () => {
                     <Button 
                       size="sm" 
                       variant="destructiveOutline" 
-                      className="text-destructive hover:text-destructive/90"
-                      disabled={loading}
+                      className={`text-destructive hover:text-destructive/90 ${!canWrite ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      disabled={loading || !canWrite}
                     >
                       <Trash2 className="w-4 h-4 mr-1 sm:mr-2" /> 
                       <span className="hidden sm:inline">Eliminar</span>
@@ -611,8 +626,8 @@ const UserManager = () => {
               </DialogClose>
               <Button 
                 type="submit" 
-                className="bg-gradient-to-r from-primary to-accent-alt hover:opacity-90"
-                disabled={loading}
+                className={`bg-gradient-to-r from-primary to-accent-alt hover:opacity-90 ${!canWrite ? 'opacity-60 cursor-not-allowed' : ''}`}
+                disabled={loading || !canWrite}
               >
                 {loading ? 'Guardando...' : (editingUser ? 'Guardar Cambios' : 'Crear Usuario')}
               </Button>

@@ -5,70 +5,70 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 40% 98%; /* Light grayish blue */
-  --foreground: 215 25% 27%; /* Dark desaturated blue */
-  --card: 0 0% 100%; /* White */
-  --card-foreground: 215 25% 27%;
+  /* Paleta rosa claro / rosa oscuro */
+  --background: 330 100% 98%;
+  --foreground: 330 25% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 330 25% 20%;
   --popover: 0 0% 100%;
-  --popover-foreground: 215 25% 27%;
-  
-  --primary: 340 60% 65%; /* Soft Pink from logo/images */
-  --primary-foreground: 0 0% 100%; /* White */
+  --popover-foreground: 330 25% 20%;
 
-  --secondary: 30 60% 88%; /* Light Beige/Cream from images */
-  --secondary-foreground: 330 50% 35%; /* Darker Rose/Maroon for text on beige */
+  --primary: 327 72% 63%; /* #E35BAA */
+  --primary-foreground: 0 0% 100%;
 
-  --muted: 210 30% 94%; /* Lighter grayish blue */
-  --muted-foreground: 215 20% 45%; /* Medium gray-blue */
-  
-  --accent: 330 55% 80%; /* Lighter Pink */
-  --accent-foreground: 330 50% 35%; /* Darker Rose/Maroon */
+  --secondary: 327 70% 90%; /* #F7B3D7 */
+  --secondary-foreground: 327 45% 25%;
 
-  --accent-alt: 330 50% 55%; /* Darker Rose/Maroon (similar to primary logo accent) */
-  --accent-alt-dark: 330 50% 35%; /* Even darker for contrast */
-  --accent-foreground-alt: 0 0% 100%; /* White for text on accent-alt */
+  --muted: 330 35% 95%;
+  --muted-foreground: 330 25% 40%;
+
+  --accent: 327 78% 74%; /* #F08BC2 */
+  --accent-foreground: 330 35% 20%;
+
+  --accent-alt: 327 49% 47%; /* #B73F85 */
+  --accent-alt-dark: 327 58% 30%; /* #7A1D55 */
+  --accent-foreground-alt: 0 0% 100%;
   
-  --destructive: 0 72% 51%; /* Red */
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 210 20% 88%; /* Light gray border */
-  --input: 210 30% 92%; /* Slightly darker input background */
-  --ring: 340 60% 65%; /* Primary color for focus rings */
+  --border: 330 20% 85%;
+  --input: 330 25% 92%;
+  --ring: 327 72% 63%;
   
-  --radius: 0.5rem;
+  --radius: 0.6rem;
 }
 
 .dark {
-  /* Example Dark Mode, can be refined */
-  --background: 215 28% 17%;
-  --foreground: 210 40% 98%;
-  --card: 215 28% 22%;
-  --card-foreground: 210 40% 98%;
-  --popover: 215 28% 22%;
-  --popover-foreground: 210 40% 98%;
+  --background: 327 50% 8%;
+  --foreground: 0 0% 98%;
+  --card: 327 45% 12%;
+  --card-foreground: 0 0% 98%;
+  --popover: 327 45% 12%;
+  --popover-foreground: 0 0% 98%;
 
-  --primary: 340 70% 70%;
-  --primary-foreground: 215 25% 10%;
+  --primary: 327 72% 63%;
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 30 30% 25%;
-  --secondary-foreground: 30 50% 90%;
+  --secondary: 327 60% 20%;
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 215 25% 25%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 327 30% 18%;
+  --muted-foreground: 0 0% 85%;
   
-  --accent: 330 60% 60%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 327 78% 54%;
+  --accent-foreground: 0 0% 100%;
 
-  --accent-alt: 330 50% 50%;
-  --accent-alt-dark: 330 50% 70%; 
+  --accent-alt: 327 49% 47%;
+  --accent-alt-dark: 327 58% 30%; 
   --accent-foreground-alt: 0 0% 100%;
 
   --destructive: 0 63% 50%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 215 20% 30%;
-  --input: 215 25% 28%;
-  --ring: 340 70% 70%;
+  --border: 327 25% 20%;
+  --input: 327 30% 22%;
+  --ring: 327 72% 63%;
 }
 
 * {
@@ -116,15 +116,17 @@ body {
 }
 
 .sidebar-gradient {
-  background: linear-gradient(180deg, hsl(var(--accent-alt)) 0%, hsl(var(--primary)) 100%);
+  /* Nuevo degradado rosa oscuro */
+  background: linear-gradient(180deg, #2B0C1D 0%, #4b1539 45%, #7A1D55 100%);
 }
 
 .button-primary-gradient {
-   background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent-alt)));
-   color: hsl(var(--primary-foreground));
+   background: linear-gradient(90deg, #E35BAA 0%, #B73F85 100%);
+   color: #fff;
+   box-shadow: 0 6px 16px rgba(227, 91, 170, 0.35);
 }
 .button-primary-gradient:hover {
-  opacity: 0.9;
+  filter: brightness(1.05);
 }
 
 /* Custom scrollbar para el menú lateral */
@@ -206,10 +208,11 @@ body {
   width: 280px;
   height: 100vh;
   height: 100dvh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Degradado rosado oscuro y negro para menú móvil */
+background: linear-gradient(160deg, #2B0C1D 0%, #4b1539 50%, #7A1D55 100%);
   color: white;
   padding: 1.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
   z-index: 50;
   overflow: hidden;
   display: flex;
@@ -603,6 +606,10 @@ body {
     margin-top: 0.5rem !important;
   }
 }
+
+/* Helpers de diseño rosado */
+.chip-pink { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); border: 1px solid hsl(var(--border)); padding: 2px 8px; border-radius: 9999px; font-size: 12px; }
+.card-gradient-pink { background: linear-gradient(180deg, rgba(227,91,170,0.10), rgba(183,63,133,0.10)); border: 1px solid hsla(var(--border) / 0.6); }
 
 /* Scrollbar súper visible para debug */
 @media (max-width: 768px) {

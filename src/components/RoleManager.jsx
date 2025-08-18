@@ -129,11 +129,28 @@ const RoleManager = () => {
   const handleOpenRoleForm = (role = null) => {
     setEditingRole(role);
     if (role) {
+      // Normalizar permisos: pueden venir como objeto {modulo: nivel}, como array o como string JSON
+      let normalizedPermissions = [];
+      if (role.permissions) {
+        if (Array.isArray(role.permissions)) {
+          normalizedPermissions = role.permissions;
+        } else if (typeof role.permissions === 'string') {
+          try {
+            const parsed = JSON.parse(role.permissions);
+            normalizedPermissions = Array.isArray(parsed) ? parsed : Object.keys(parsed || {});
+          } catch (e) {
+            normalizedPermissions = [];
+          }
+        } else if (typeof role.permissions === 'object') {
+          normalizedPermissions = Object.keys(role.permissions);
+        }
+      }
+
       setRoleFormData({
         name: role.name || '',
         description: role.description || '',
         category_id: role.category_id || '',
-        permissions: role.permissions ? JSON.parse(role.permissions) : [],
+        permissions: normalizedPermissions,
         active: role.active !== 0
       });
     } else {
@@ -562,7 +579,7 @@ const RoleManager = () => {
                 <Button
                   size="sm"
                   variant="destructive"
-                  onClick={() => handleDeleteRole(role.id)}
+                  onClick={() => handleDeleteCategory(category.id)}
                   disabled={loading}
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
@@ -616,14 +633,30 @@ const RoleManager = () => {
                   <div className="mb-2">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Permisos:</p>
                     <div className="flex flex-wrap gap-1">
-                      {JSON.parse(role.permissions).map((permission) => {
-                        const permissionData = availablePermissions.find(p => p.id === permission);
-                        return (
-                          <span key={permission} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded">
-                            {permissionData?.name || permission}
-                          </span>
-                        );
-                      })}
+                      {(() => {
+                        // Normalizar lista de permisos para mostrar etiquetas
+                        let perms = [];
+                        if (Array.isArray(role.permissions)) {
+                          perms = role.permissions;
+                        } else if (typeof role.permissions === 'string') {
+                          try {
+                            const parsed = JSON.parse(role.permissions);
+                            perms = Array.isArray(parsed) ? parsed : Object.keys(parsed || {});
+                          } catch (e) {
+                            perms = [];
+                          }
+                        } else if (typeof role.permissions === 'object') {
+                          perms = Object.keys(role.permissions);
+                        }
+                        return perms.map((permission) => {
+                          const permissionData = availablePermissions.find(p => p.id === permission);
+                          return (
+                            <span key={permission} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded">
+                              {permissionData?.name || permission}
+                            </span>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 )}

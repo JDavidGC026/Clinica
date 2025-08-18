@@ -36,29 +36,56 @@ try {
         case 'POST':
             $data = getRequestData();
             
-            $requiredFields = ['username', 'password', 'name', 'email', 'role'];
-            foreach ($requiredFields as $field) {
+            // Requeridos base
+            $baseRequired = ['username', 'password', 'name', 'email'];
+            foreach ($baseRequired as $field) {
                 if (!isset($data[$field])) {
                     logApiActivity('users', 'POST', 400, "Missing required field: $field");
                     sendError("Missing required field: $field", 400);
                 }
             }
             
+            // Debe venir 'role' (nombre) o 'role_id' (id). Al menos uno.
+            if (!isset($data['role']) && !isset($data['role_id'])) {
+                logApiActivity('users', 'POST', 400, "Missing required field: role or role_id");
+                sendError("Missing required field: role or role_id", 400);
+            }
+            
             // Hash password
             $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
             
-            // NUEVO: Obtener role_id basándose en el nombre del rol
+            // Resolver rol: aceptar role_id directo o buscar por nombre
             $roleId = null;
-            if (isset($data['role'])) {
-                $stmt = $pdo->prepare("SELECT id FROM roles WHERE name = ? AND active = 1");
+            $roleName = null;
+            
+            if (isset($data['role_id'])) {
+                // Validar y obtener nombre del rol por id
+                $stmt = $pdo->prepare("SELECT id, name FROM roles WHERE id = ? AND active = 1");
+                $stmt->execute([$data['role_id']]);
+                $roleResult = $stmt->fetch();
+                if ($roleResult) {
+                    $roleId = (int)$roleResult['id'];
+                    $roleName = $roleResult['name'];
+                } else {
+                    logApiActivity('users', 'POST', 400, "Invalid role_id provided");
+                    sendError("Invalid role_id: role not found or inactive", 400);
+                }
+            } elseif (isset($data['role'])) {
+                // Buscar id por nombre
+                $stmt = $pdo->prepare("SELECT id, name FROM roles WHERE name = ? AND active = 1");
                 $stmt->execute([$data['role']]);
                 $roleResult = $stmt->fetch();
                 if ($roleResult) {
-                    $roleId = $roleResult['id'];
+                    $roleId = (int)$roleResult['id'];
+                    $roleName = $roleResult['name'];
+                } else {
+                    // Permitir crear usuario sin role_id si el nombre no existe? Mejor rechazar para consistencia.
+                    logApiActivity('users', 'POST', 400, "Invalid role name provided: {$data['role']}");
+                    sendError("Invalid role name: role not found or inactive", 400);
                 }
             }
             
-            // CORREGIDO: Incluir role_id en el INSERT
+            // INSERT con role y role_id coherentes
             $stmt = $pdo->prepare("
                 INSERT INTO users (username, password_hash, name, email, role, role_id, active) 
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -69,8 +96,8 @@ try {
                 $passwordHash,
                 $data['name'],
                 $data['email'],
-                $data['role'],
-                $roleId, // NUEVO: Asignar role_id
+                $roleName,
+                $roleId,
                 $data['active'] ?? true
             ]);
             

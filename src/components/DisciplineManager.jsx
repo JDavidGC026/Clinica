@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Briefcase, Search, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, Briefcase, Search, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import {
@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import apiService from '@/services/ApiService';
-
+import { hasPermission, hasAnyPermission } from '@/utils/permissions';
 
 const DisciplineManager = () => {
   const [disciplines, setDisciplines] = useState([]);
@@ -197,6 +197,20 @@ const DisciplineManager = () => {
     }
   };
 
+  // Guardas de permisos
+  const canRead = hasAnyPermission(['disciplines', 'disciplines_manage'], 'read');
+  const canWrite = hasPermission('disciplines_manage', 'write') || hasPermission('disciplines', 'write');
+
+  if (!canRead) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <ShieldCheck size={64} className="text-destructive mb-4" />
+        <h2 className="text-2xl font-semibold text-foreground mb-2">Acceso Denegado</h2>
+        <p className="text-muted-foreground">No tienes permiso para ver Disciplinas.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -217,7 +231,7 @@ const DisciplineManager = () => {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             Actualizar
           </Button>
-          <Button onClick={() => handleOpenForm()}>
+          <Button onClick={() => handleOpenForm()} disabled={!canWrite} className={!canWrite ? 'opacity-60 cursor-not-allowed' : ''}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Disciplina
           </Button>
@@ -272,6 +286,8 @@ const DisciplineManager = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => handleOpenForm(discipline)}
+                  disabled={!canWrite}
+                  className={!canWrite ? 'opacity-60 cursor-not-allowed' : ''}
                 >
                   <Edit className="h-3 w-3 mr-1" />
                   Editar
@@ -279,7 +295,7 @@ const DisciplineManager = () => {
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
+                    <Button size="sm" variant="destructive" disabled={!canWrite} className={!canWrite ? 'opacity-60 cursor-not-allowed' : ''}>
                       <Trash2 className="h-3 w-3 mr-1" />
                       Eliminar
                     </Button>
@@ -366,7 +382,8 @@ const DisciplineManager = () => {
             </DialogClose>
             <Button 
               onClick={handleSubmit} 
-              disabled={loading}
+              disabled={loading || !canWrite}
+              className={!canWrite ? 'opacity-60 cursor-not-allowed' : ''}
             >
               {loading ? 'Guardando...' : editingDiscipline ? 'Actualizar' : 'Crear'}
             </Button>

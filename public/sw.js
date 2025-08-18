@@ -1,60 +1,29 @@
 // Service Worker para Clínica Delux
-const CACHE_NAME = 'clinica-delux-v2';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json',
-  // Nota: Los assets se generan dinámicamente por Vite, no los incluimos aquí
-];
+const CACHE_NAME = 'clinica-delux-nocache-v1';
 
 self.addEventListener('install', (event) => {
-  // Saltarse la fase de espera
+  // No precache. Tomar control inmediato.
   self.skipWaiting();
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Cache abierto');
-        // Solo cachear archivos que sabemos que existen
-        return cache.addAll(['./', './index.html', './manifest.json']);
-      })
-      .catch((error) => {
-        console.log('Error al cachear archivos:', error);
-      })
-  );
 });
 
 self.addEventListener('fetch', (event) => {
-  // No usar cache para las peticiones API
-  if (event.request.url.includes('/api/')) {
-    return;
-  }
-  
-  // Para otros recursos, intentar red primero, luego cache
+  // Siempre red directa y sin almacenar
   event.respondWith(
-    fetch(event.request)
-      .catch(() => {
-        return caches.match(event.request);
-      })
+    fetch(event.request, { cache: 'no-store' }).catch(() => {
+      // Como fallback, intentar devolver el propio request desde cache si existiera (no almacenamos nada)
+      return caches.match(event.request);
+    })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  // Reclamar clientes para que el nuevo service worker tome efecto inmediatamente
-  event.waitUntil(clients.claim());
-  
-  // Limpiar caches antiguas
-  const cacheWhitelist = [CACHE_NAME];
+  // Borrar cualquier cache existente y reclamar clientes
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    (async () => {
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+      await self.clients.claim();
+    })()
   );
 });
 

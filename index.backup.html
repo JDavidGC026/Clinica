@@ -60,7 +60,7 @@
 			/* iOS Splash Screen */
 			@media (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) {
 				.splash-screen {
-					background: linear-gradient(135deg, #0b0b10 0%, #1a0b13 30%, #4b1539 65%, #741c5b 100%);
+					background: linear-gradient(135deg, #d946ef, #a855f7);
 					position: fixed;
 					top: 0;
 					left: 0;
@@ -80,7 +80,7 @@
 				left: 0;
 				width: 100%;
 				height: 100%;
-				background: linear-gradient(135deg, #0b0b10 0%, #1a0b13 30%, #4b1539 65%, #741c5b 100%);
+				background: linear-gradient(135deg, #d946ef, #a855f7);
 				display: flex;
 				flex-direction: column;
 				align-items: center;
@@ -93,7 +93,7 @@
 			.loading-logo {
 				width: 80px;
 				height: 80px;
-				background: transparent;
+				background: white;
 				border-radius: 20px;
 				margin-bottom: 20px;
 				display: flex;
@@ -108,7 +108,13 @@
 				position: relative;
 			}
 			
-			.loading-cross::before,.loading-cross::after { display: none; }
+			.loading-cross::before,
+			.loading-cross::after {
+				content: '';
+				position: absolute;
+				background: #d946ef;
+				border-radius: 2px;
+			}
 			
 			.loading-cross::before {
 				width: 6px;
@@ -220,7 +226,9 @@
 	<body>
 		<!-- Loading Screen -->
 		<div id="loading-screen" class="loading-screen">
-			<div class="loading-logo"><img src="./logo.png" alt="Logo" style="width:96px;height:96px;object-fit:contain;filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));"/></div>
+			<div class="loading-logo">
+				<div class="loading-cross"></div>
+			</div>
 			<div class="loading-text">Clínica Delux</div>
 			<div class="loading-subtitle">Sistema de Gestión Médica</div>
 			<div class="loading-location">
@@ -232,7 +240,9 @@
 		<!-- iOS Splash Screen -->
 		<div id="splash-screen" class="splash-screen" style="display: none;">
 			<div style="text-align: center; color: white;">
-				<div class="loading-logo"><img src="./logo.png" alt="Logo" style="width:96px;height:96px;object-fit:contain;filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));"/></div>
+				<div class="loading-logo">
+					<div class="loading-cross"></div>
+				</div>
 				<h1 style="font-size: 24px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Clínica Delux</h1>
 				<p style="font-size: 16px; margin: 8px 0 0; opacity: 0.8; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">Sistema de Gestión Médica</p>
 				<p style="font-size: 14px; margin: 4px 0 0; opacity: 0.7; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">🇲🇽 Ciudad de México</p>

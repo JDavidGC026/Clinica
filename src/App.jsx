@@ -62,7 +62,7 @@ function App() {
       const parsedUser = JSON.parse(savedUser);
       setIsAuthenticated(true);
       setCurrentUser(parsedUser);
-      if (!isViewAllowed(currentView, parsedUser.role)) {
+      if (!isViewAllowed(currentView, parsedUser.role, parsedUser.permissions)) {
         setCurrentView('dashboard');
       }
     }
@@ -318,18 +318,85 @@ function App() {
     { id: 'settings', label: 'Configuración', icon: Settings, roles: [ROLES.SUPER_ADMIN, ROLES.SUPERVISOR, ROLES.ADMIN, ROLES.MANAGER] },
   ];
 
-  const isViewAllowed = (viewId, userRole) => {
+  // Permisos por vista (permite módulos legacy y nuevos *_manage)
+  const permissionMap = {
+    dashboard: [], // Siempre visible tras login
+    'professional-portal': [{ module: 'professional-portal', level: 'read' }],
+    appointments: [
+      { module: 'appointments', level: 'read' },
+      { module: 'appointments_manage', level: 'read' },
+      { module: 'calendar', level: 'read' },
+    ],
+    calendar: [
+      { module: 'calendar', level: 'read' },
+      { module: 'appointments', level: 'read' },
+    ],
+    professionals: [
+      { module: 'professionals', level: 'read' },
+      { module: 'professionals_manage', level: 'read' },
+    ],
+    disciplines: [
+      { module: 'disciplines', level: 'read' },
+      { module: 'disciplines_manage', level: 'read' },
+    ],
+    users: [
+      { module: 'users', level: 'read' },
+      { module: 'users_manage', level: 'write' },
+    ],
+    roles: [
+      { module: 'roles', level: 'read' },
+      { module: 'roles_manage', level: 'write' },
+    ],
+    patients: [
+      { module: 'patients', level: 'read' },
+      { module: 'patients_manage', level: 'read' },
+    ],
+    finances: [
+      { module: 'finances', level: 'read' },
+    ],
+    emails: [
+      { module: 'emails', level: 'read' },
+    ],
+    reports: [
+      { module: 'reports', level: 'read' },
+      { module: 'reports_view', level: 'read' },
+    ],
+    'api-logs': [
+      { module: 'api-logs', level: 'read' },
+    ],
+    settings: [
+      { module: 'settings', level: 'read' },
+      { module: 'settings_manage', level: 'write' },
+    ],
+  };
+
+  const levelValue = (lvl) => (lvl === 'read' ? 1 : lvl === 'write' ? 2 : lvl === 'admin' ? 3 : 0);
+
+  const hasModulePermission = (permissions, module, required = 'read') => {
+    if (!permissions) return false;
+    const lvl = permissions[module];
+    if (!lvl) return false;
+    return levelValue(lvl) >= levelValue(required);
+  };
+
+  const isViewAllowed = (viewId, userRole, userPermissions = null) => {
     const menuItem = allMenuItems.find(item => item.id === viewId);
-    return menuItem ? menuItem.roles.includes(userRole) : false;
+    // 1) Compatibilidad: si el rol está en la whitelist legacy, permitir
+    if (menuItem && menuItem.roles.includes(userRole)) return true;
+    // 2) Si hay mapa de permisos, evaluar módulos requeridos
+    const reqs = permissionMap[viewId];
+    if (!reqs) return false;
+    if (reqs.length === 0) return true; // vistas sin requisitos explícitos
+    return reqs.some(req => hasModulePermission(userPermissions, req.module, req.level || 'read'));
   };
   
-  const getVisibleMenuItems = (userRole) => {
+  const getVisibleMenuItems = (userRole, userPermissions = null) => {
     if (!userRole) return [];
-    return allMenuItems.filter(item => item.roles.includes(userRole));
+    return allMenuItems.filter(item => isViewAllowed(item.id, userRole, userPermissions));
   };
 
   const handleSetView = async (view) => {
-    if (currentUser && isViewAllowed(view, currentUser.role)) {
+    if (currentUser && isViewAllowed(view, currentUser.role, currentUser.permissions)) {
       setCurrentView(view);
       
       // Sincronizar datos automáticamente al cambiar de sección
@@ -348,7 +415,7 @@ function App() {
   }
 
   const SidebarContent = ({ isMobile = false }) => {
-    const visibleItems = getVisibleMenuItems(currentUser?.role);
+    const visibleItems = getVisibleMenuItems(currentUser?.role, currentUser?.permissions);
     return (
       <div className="h-full sidebar-flex-container mobile-sidebar">
         {/* Encabezado del Sidebar */}
@@ -464,7 +531,7 @@ function App() {
   };
 
   const renderContent = () => {
-    if (currentUser && !isViewAllowed(currentView, currentUser.role)) {
+    if (currentUser && !isViewAllowed(currentView, currentUser.role, currentUser.permissions)) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <ShieldCheck size={64} className="text-destructive mb-4" />
@@ -510,7 +577,11 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen min-h-dvh flex items-center justify-center p-3 sm:p-4 bg-background">
+      <div className="min-h-screen min-h-dvh flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 relative overflow-hidden">
+        {/* Decoración sutil de fondo */}
+        <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-indigo-600/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-purple-600/10 blur-3xl" />
+
         <LoginForm onLogin={handleLogin} clinicName={CLINIC_NAME} isLoading={isLoading} />
         <Toaster />
         <PWAInstallPrompt />
