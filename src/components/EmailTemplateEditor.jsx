@@ -503,7 +503,47 @@ Si tiene alguna pregunta, contáctenos.
     }
   };
 
+  // Sanea placeholders tipo ${var} o {var} -> {{var}} sobre una lista blanca
+  const allowedVars = [
+    'clinic_name','clinic_address','clinic_phone',
+    'patient_name','patient_email','patient_phone',
+    'professional_name','appointment_date','appointment_type','folio'
+  ];
+
+  const sanitizePlaceholders = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    let out = text;
+    // ${var} -> {{var}}
+    allowedVars.forEach(v => {
+      const tplRegex = new RegExp(`\\\\?\\$\\{\\s*${v}\\s*\\}`, 'g');
+      out = out.replace(tplRegex, `{{${v}}}`);
+    });
+    // {var} (una sola llave) -> {{var}}
+    allowedVars.forEach(v => {
+      const singleBrace = new RegExp(`(?<!\\{)\\{\\s*${v}\\s*\\}(?!\\})`, 'g');
+      out = out.replace(singleBrace, `{{${v}}}`);
+    });
+    return out;
+  };
+
+  const sanitizeTemplateObject = (tpl) => ({
+    subject: sanitizePlaceholders(tpl.subject),
+    html: sanitizePlaceholders(tpl.html),
+    text: sanitizePlaceholders(tpl.text)
+  });
+
   useEffect(() => {
+    // Asegurar valores por defecto en localStorage para variables de clínica
+    if (!localStorage.getItem('clinic_name')) {
+      localStorage.setItem('clinic_name', 'Clínica Delux');
+    }
+    if (!localStorage.getItem('clinic_address')) {
+      localStorage.setItem('clinic_address', 'Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México');
+    }
+    if (!localStorage.getItem('clinic_phone')) {
+      localStorage.setItem('clinic_phone', '+52 55 1234 5678');
+    }
+
     loadTemplates();
   }, []);
 
@@ -518,13 +558,28 @@ Si tiene alguna pregunta, contáctenos.
     if (saved) {
       try {
         const parsedTemplates = JSON.parse(saved);
-        setTemplates({ ...defaultTemplates, ...parsedTemplates });
+        // Sanear cada template guardado
+        const sanitizedSaved = Object.fromEntries(
+          Object.entries(parsedTemplates).map(([k, tpl]) => [k, sanitizeTemplateObject(tpl || {})])
+        );
+        // Merge con defaults, los defaults también sanitizados por si acaso
+        const sanitizedDefaults = Object.fromEntries(
+          Object.entries(defaultTemplates).map(([k, tpl]) => [k, sanitizeTemplateObject(tpl)])
+        );
+        setTemplates({ ...sanitizedDefaults, ...sanitizedSaved });
       } catch (error) {
         console.error('Error loading templates:', error);
-        setTemplates(defaultTemplates);
+        // Fallback a defaults sanitizados
+        const sanitizedDefaults = Object.fromEntries(
+          Object.entries(defaultTemplates).map(([k, tpl]) => [k, sanitizeTemplateObject(tpl)])
+        );
+        setTemplates(sanitizedDefaults);
       }
     } else {
-      setTemplates(defaultTemplates);
+      const sanitizedDefaults = Object.fromEntries(
+        Object.entries(defaultTemplates).map(([k, tpl]) => [k, sanitizeTemplateObject(tpl)])
+      );
+      setTemplates(sanitizedDefaults);
     }
   };
 
@@ -554,7 +609,8 @@ Si tiene alguna pregunta, contáctenos.
   };
 
   const previewTemplate = () => {
-    const processedHtml = processTemplate(editingTemplate.html, previewData);
+    const safeTemplate = sanitizePlaceholders(editingTemplate.html);
+    const processedHtml = processTemplate(safeTemplate, previewData);
     const previewWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
     previewWindow.document.write(processedHtml);
     previewWindow.document.close();
@@ -564,7 +620,7 @@ Si tiene alguna pregunta, contáctenos.
     const clinicName = localStorage.getItem('clinic_name') || 'Clínica Delux';
     const clinicAddress = localStorage.getItem('clinic_address') || 'Av. Paseo de la Reforma 123, Col. Juárez, CDMX, México';
     const clinicPhone = localStorage.getItem('clinic_phone') || '+52 55 1234 5678';
-    
+
     const allData = {
       ...data,
       clinic_name: clinicName,
@@ -572,7 +628,9 @@ Si tiene alguna pregunta, contáctenos.
       clinic_phone: clinicPhone
     };
 
-    let processed = template;
+    // Convertir placeholders inseguros a formato soportado
+    let processed = sanitizePlaceholders(template);
+
     Object.keys(allData).forEach(key => {
       const regex = new RegExp(`{{${key}}}`, 'g');
       processed = processed.replace(regex, allData[key] || '');
