@@ -142,23 +142,15 @@ class ApiService {
   }
 
   async getUsers() {
-    try {
-      // SIEMPRE invalidar cache antes de cargar usuarios
-      await CacheManager.invalidateEntityCache('users');
-      
-      const serverData = await this.get('users.php');
-      localStorage.setItem('clinic_users', JSON.stringify(serverData));
-      
-      // Disparar evento de actualización
-      window.dispatchEvent(new CustomEvent('dataUpdated', {
-        detail: { entity: 'users', data: serverData, source: 'database' }
-      }));
-      
-      return serverData;
-    } catch (error) {
-      this.log('warn', 'Cargando usuarios desde almacenamiento local', { error: error.message });
-      return this.hybridStorage.getFromLocalStorage('users');
-    }
+    // No guardar en localStorage ni usar fallback: datos siempre en vivo
+    // Invalidar rastros anteriores por si existen
+    await CacheManager.invalidateEntityCache('users');
+    const serverData = await this.get('users.php');
+    // Notificar actualización para que listas se refresquen
+    window.dispatchEvent(new CustomEvent('dataUpdated', {
+      detail: { entity: 'users', data: serverData, source: 'database' }
+    }));
+    return serverData;
   }
 
   // Disciplinas con invalidación automática
@@ -296,7 +288,7 @@ class ApiService {
 
   async updateProfessional(id, professionalData) {
     try {
-      const serverResponse = await this.put(`professionals?id=${id}`, professionalData);
+      const serverResponse = await this.put(`professionals.php?id=${id}`, professionalData);
       
       await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', serverResponse, 'update', id);
@@ -312,7 +304,7 @@ class ApiService {
 
   async deleteProfessional(id) {
     try {
-      await this.delete(`professionals?id=${id}`);
+      await this.delete(`professionals.php?id=${id}`);
       
       await CacheManager.invalidateEntityCache('professionals');
       await this.hybridStorage.saveData('professionals', { id }, 'delete', id);
@@ -362,7 +354,7 @@ class ApiService {
 
   async updatePatient(id, patientData) {
     try {
-      const serverResponse = await this.put(`patients?id=${id}`, patientData);
+      const serverResponse = await this.put(`patients.php?id=${id}`, patientData);
       
       await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', serverResponse, 'update', id);
@@ -378,7 +370,7 @@ class ApiService {
 
   async deletePatient(id) {
     try {
-      await this.delete(`patients?id=${id}`);
+      await this.delete(`patients.php?id=${id}`);
       
       await CacheManager.invalidateEntityCache('patients');
       await this.hybridStorage.saveData('patients', { id }, 'delete', id);
@@ -428,7 +420,7 @@ class ApiService {
 
   async updateAppointment(id, appointmentData) {
     try {
-      const serverResponse = await this.put(`appointments?id=${id}`, appointmentData);
+      const serverResponse = await this.put(`appointments.php?id=${id}`, appointmentData);
       
       await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', serverResponse, 'update', id);
@@ -444,7 +436,7 @@ class ApiService {
 
   async deleteAppointment(id) {
     try {
-      await this.delete(`appointments?id=${id}`);
+      await this.delete(`appointments.php?id=${id}`);
       
       await CacheManager.invalidateEntityCache('appointments');
       await this.hybridStorage.saveData('appointments', { id }, 'delete', id);
@@ -461,7 +453,8 @@ class ApiService {
   // Roles
   async getRoles() {
     try {
-      const serverData = await this.get('roles.php');
+      // Incluir permisos y categorías para que el frontend tenga toda la información necesaria
+      const serverData = await this.get('roles.php?include_permissions=1&include_categories=1');
       return serverData;
     } catch (error) {
       this.log('warn', 'Error cargando roles', { error: error.message });
@@ -598,7 +591,7 @@ class ApiService {
 
   // Notas Clínicas
   async getClinicalNotes(patientId, professionalId) {
-    return this.get(`clinical-notes?patient_id=${patientId}&professional_id=${professionalId}`);
+    return this.get(`clinical-notes.php?patient_id=${patientId}&professional_id=${professionalId}`);
   }
 
   async saveClinicalNotes(patientId, professionalId, notes) {

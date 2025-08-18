@@ -13,6 +13,8 @@ const Dashboard = () => {
   });
   const [clinicName, setClinicName] = useState("Grupo Médico Delux");
   const [loading, setLoading] = useState(true);
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
     const storedClinicName = localStorage.getItem('clinic_name');
@@ -22,6 +24,22 @@ const Dashboard = () => {
 
     loadDashboardData();
   }, []);
+
+  const formatDateLabel = (dateStr) => {
+    try {
+      const today = new Date();
+      const target = new Date(dateStr + 'T00:00:00');
+      const isToday = target.toDateString() === today.toDateString();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const isYesterday = target.toDateString() === yesterday.toDateString();
+      if (isToday) return 'Hoy';
+      if (isYesterday) return 'Ayer';
+      return target.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+    } catch {
+      return dateStr;
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -35,22 +53,66 @@ const Dashboard = () => {
         apiService.getDisciplines()
       ]);
 
+      // Estadísticas
       const today = new Date().toDateString();
-      const todayAppointments = appointments.filter(apt => 
+      const todayAppointments = (appointments || []).filter(apt => 
         new Date(apt.date).toDateString() === today
       ).length;
 
-      const pendingAppointments = appointments.filter(apt => 
-        apt.status === 'programada'
+      const pendingAppointments = (appointments || []).filter(apt => 
+        (apt.status || '').toLowerCase() === 'programada'
       ).length;
 
       setStats({
         todayAppointments,
-        totalProfessionals: professionals.length,
-        totalPatients: patients.length,
+        totalProfessionals: (professionals || []).length,
+        totalPatients: (patients || []).length,
         pendingAppointments,
-        totalDisciplines: disciplines.length,
+        totalDisciplines: (disciplines || []).length,
       });
+
+      // Próximas citas (siguientes 5 futuras)
+      const now = new Date();
+      const enriched = (appointments || []).map(a => {
+        // Combinar date y time si existen por separado
+        let start = null;
+        try {
+          // Normalizar hora (HH:mm o HH:mm:ss)
+          const time = (a.time || '00:00').slice(0,5);
+          start = new Date(`${a.date}T${time}:00`);
+        } catch {
+          start = new Date(a.date);
+        }
+        return { ...a, _start: start };
+      });
+
+      const upcoming = enriched
+        .filter(a => a._start && a._start >= now && ((a.status || '').toLowerCase() !== 'cancelada'))
+        .sort((a, b) => a._start - b._start)
+        .slice(0, 5)
+        .map(a => ({
+          id: a.id,
+          patient: a.patient_name || a.patient_full_name || 'Paciente',
+          professional: a.professional_name || a.professional_full_name || 'Profesional',
+          type: a.type || 'Consulta',
+          time: a._start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          dateLabel: formatDateLabel(a.date)
+        }));
+      setUpcomingAppointments(upcoming);
+
+      // Actividad reciente (últimas 6 citas por fecha/hora)
+      const recent = enriched
+        .filter(a => a._start)
+        .sort((a, b) => b._start - a._start)
+        .slice(0, 6)
+        .map(a => ({
+          id: a.id,
+          type: 'appointment',
+          message: `${a.patient_name || a.patient_full_name || 'Paciente'} con ${a.professional_name || a.professional_full_name || 'Profesional'} — ${a.type || 'Consulta'}`,
+          time: `${formatDateLabel(a.date)} · ${a._start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+        }));
+      setRecentActivities(recent);
+
     } catch (error) {
       console.error('Error cargando datos del dashboard:', error);
       // En caso de error, mostrar valores por defecto
@@ -61,6 +123,8 @@ const Dashboard = () => {
         pendingAppointments: 0,
         totalDisciplines: 0,
       });
+      setUpcomingAppointments([]);
+      setRecentActivities([]);
     } finally {
       setLoading(false);
     }
@@ -72,13 +136,6 @@ const Dashboard = () => {
     { title: 'Disciplinas', value: stats.totalDisciplines, icon: Briefcase, color: 'bg-secondary-alt', bgColor: 'bg-secondary-alt/10' },
     { title: 'Pacientes Registrados', value: stats.totalPatients, icon: TrendingUp, color: 'bg-pink-500', bgColor: 'bg-pink-500/10' },
     { title: 'Citas Pendientes', value: stats.pendingAppointments, icon: Clock, color: 'bg-amber-500', bgColor: 'bg-amber-500/10' }
-  ];
-
-  const recentActivities = [
-    { id: 1, type: 'appointment', message: 'Nueva cita: Dr. García', time: '10:30 AM' },
-    { id: 2, type: 'patient', message: 'Nuevo paciente: M. Rodríguez', time: '09:15 AM' },
-    { id: 3, type: 'appointment', message: 'Cita completada: Dr. Ruiz', time: '08:45 AM' },
-    { id: 4, type: 'system', message: 'Recordatorios enviados', time: '08:00 AM' }
   ];
 
   if (loading) {
@@ -145,6 +202,9 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
           <h2 className="text-xl font-semibold text-card-foreground mb-4">Actividad Reciente</h2>
           <div className="space-y-4">
+            {recentActivities.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sin actividad reciente</p>
+            )}
             {recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
@@ -164,26 +224,21 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-card rounded-xl shadow-lg p-4 sm:p-6 border border-border/50">
           <h2 className="text-xl font-semibold text-card-foreground mb-4">Próximas Citas</h2>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-              <div>
-                <p className="font-medium text-sm text-card-foreground">Ana Martínez</p>
-                <p className="text-xs text-muted-foreground">Consulta General</p>
+            {upcomingAppointments.length === 0 && (
+              <p className="text-sm text-muted-foreground">No hay próximas citas</p>
+            )}
+            {upcomingAppointments.map((apt, idx) => (
+              <div key={apt.id || idx} className={`flex items-center justify-between p-3 rounded-lg ${idx === 0 ? 'bg-primary/5' : 'bg-muted/30'}`}>
+                <div>
+                  <p className="font-medium text-sm text-card-foreground">{apt.patient}</p>
+                  <p className="text-xs text-muted-foreground">{apt.type} · {apt.professional}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-sm font-medium ${idx === 0 ? 'text-primary' : 'text-foreground'}`}>{apt.time}</p>
+                  <p className="text-xs text-muted-foreground">{apt.dateLabel}</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-primary">11:00</p>
-                <p className="text-xs text-muted-foreground">Hoy</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-green-500/5 rounded-lg">
-              <div>
-                <p className="font-medium text-sm text-card-foreground">Carlos López</p>
-                <p className="text-xs text-muted-foreground">Revisión</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-green-600">14:30</p>
-                <p className="text-xs text-muted-foreground">Hoy</p>
-              </div>
-            </div>
+            ))}
           </div>
         </motion.div>
       </div>
