@@ -27,9 +27,9 @@ if (file_exists($envFile)) {
 
 // Configuración de base de datos
 $host = $_ENV['DB_HOST'] ?? 'localhost';
-$username = $_ENV['DB_USER'] ?? 'u437141408_clinica';
-$password = $_ENV['DB_PASSWORD'] ?? '@Aguila01126';
-$database = $_ENV['DB_NAME'] ?? 'u437141408_clinica';
+$username = $_ENV['DB_USER'] ?? '';
+$password = $_ENV['DB_PASSWORD'] ?? '';
+$database = $_ENV['DB_NAME'] ?? '';
 
 function getDatabase() {
     global $host, $username, $password, $database;
@@ -108,4 +108,5 @@ function logApiActivity($endpoint, $method, $status, $message = '') {
 $endpoint = $_SERVER['REQUEST_URI'] ?? 'Unknown';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'Unknown';
 logApiActivity($endpoint, $method, 200, 'API request started');
+
 ?>
